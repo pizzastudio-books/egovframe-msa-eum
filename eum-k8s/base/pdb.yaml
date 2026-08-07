@@ -1,0 +1,11 @@
+# 노드를 비우거나 갈아치울 때도 최소 대수를 지킨다(12.1).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eum
+  namespace: eum
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eum

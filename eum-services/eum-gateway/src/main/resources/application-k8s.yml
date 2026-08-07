@@ -1,0 +1,20 @@
+# 클러스터에서 띄울 때.
+#
+# 뒤쪽 서비스 주소는 application.yml 이 이미 환경변수로 읽는다. 여기서는 프로브가
+# 부르는 경로만 켠다.
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+logging:
+  level:
+    root: info

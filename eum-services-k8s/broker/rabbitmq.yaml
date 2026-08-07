@@ -1,0 +1,91 @@
+# 실습용 RabbitMQ.
+#
+# **운영 전제는 클러스터 밖이거나 전용 오퍼레이터다.** 브로커에 쌓인 메시지는 파드처럼
+# 사라지면 안 되고, 이중화와 백업을 따로 챙겨야 하는 자산이다. 여기서는 노트북 한 대에서
+# 실습을 끝내려고 클러스터 안에 한 대만 둔다.
+#
+# 브로커를 카프카로 바꾸는 이야기는 부록 F 에 있다.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: eum-rabbitmq-data
+  namespace: eum
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: eum-rabbitmq
+  namespace: eum
+spec:
+  serviceName: eum-rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eum-rabbitmq
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eum-rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.13-management
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: management
+              containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: eum-secret
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: eum-secret
+                  key: RABBITMQ_PASSWORD
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "768Mi"
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_running"]
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: eum-rabbitmq-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eum-rabbitmq
+  namespace: eum
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: eum-rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+    - name: management
+      port: 15672
+      targetPort: management

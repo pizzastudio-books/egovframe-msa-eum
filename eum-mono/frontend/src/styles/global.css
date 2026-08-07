@@ -1,0 +1,85 @@
+/*
+ * 이음 디자인 토큰 — IBM Carbon(White 테마)에서 가져온 색·간격·포커스.
+ * 무거운 @carbon/react 라이브러리 대신 토큰만 일반 CSS 변수로 가져와, 베이스라인(일반 CSS)을 지킨다.
+ * 색 대비는 Carbon이 WCAG 기준으로 검증한 값이라 KWCAG 2.2와 충돌이 적다.
+ */
+:root {
+  /* 색 토큰(Carbon) */
+  --eum-interactive: #0f62fe; /* Blue 60 — 강조·링크·포커스 */
+  --eum-text: #161616;        /* Gray 100 — 본문 */
+  --eum-text-secondary: #525252; /* Gray 70 — 보조 */
+  --eum-bg: #f4f4f4;          /* Gray 10 — 캔버스 */
+  --eum-layer: #ffffff;       /* White — 카드·표 */
+  --eum-border: #e0e0e0;      /* Gray 20 — 경계 */
+  --eum-shell: #161616;       /* Gray 100 — 상단 UI 셸 */
+  --eum-error: #da1e28;       /* Red 60 */
+  /* 간격 8px 그리드 */
+  --eum-sp-2: 8px;
+  --eum-sp-3: 16px;
+  --eum-sp-5: 32px;
+
+  font-family: 'IBM Plex Sans KR', 'Pretendard', -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  line-height: 1.5;
+  color: var(--eum-text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--eum-bg);
+}
+
+h1 {
+  font-size: 22px;
+}
+
+/* 폼 기본 — Carbon은 날카로운 모서리(반경 0)를 쓴다. 포커스는 또렷하게(접근성) */
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--eum-border);
+  border-radius: 0;
+  background: var(--eum-layer);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--eum-interactive);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+}
+
+table th,
+table td {
+  text-align: left;
+}
+
+/* 잘못된 입력은 색만이 아니라 테두리로도 표시 */
+[aria-invalid='true'] {
+  border-color: var(--eum-error);
+}
+
+/* 스크린리더 전용 텍스트(시각적으로는 숨김) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

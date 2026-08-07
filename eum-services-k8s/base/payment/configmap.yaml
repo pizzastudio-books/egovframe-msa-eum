@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eum-payment
+  namespace: eum
+data:
+  MYSQL_DATABASE: "eum_pay"
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+  EUM_OUTBOX_ENABLED: "true"
+  EUM_OUTBOX_INTERVAL_MILLIS: "2000"
+  # 야간 이체는 크론잡이 부른다. 앱 안의 스케줄은 끈다(11.5)
+  EUM_BATCH_PAYMENT_ENABLED: "false"

@@ -1,0 +1,122 @@
+{{/*
+서비스마다 배포를 하나씩 만든다.
+
+손으로 쓸 때는 이 파일이 다섯 장이었다. 다섯 장이 이름만 다르고 나머지는 거의 같았고,
+자원 요청을 한 서비스만 고치면 나머지 넷과 어긋난 채로 남았다. 이제 한 장이다.
+*/}}
+{{- range $name, $svc := .Values.services }}
+{{- $ctx := dict "root" $ "svc" $svc "svcName" $name "Release" $.Release "Chart" $.Chart }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "eum.fullname" $ctx }}
+  labels:
+    {{- include "eum.labels" $ctx | nindent 4 }}
+spec:
+  {{- if not $svc.autoscaling.enabled }}
+  replicas: {{ $svc.replicas }}
+  {{- end }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      {{- include "eum.selectorLabels" $ctx | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        {{- include "eum.labels" $ctx | nindent 8 }}
+      annotations:
+        # 설정만 바꿨을 때도 파드가 다시 뜨게 한다. 이것이 없으면 컨피그맵을 고쳐도
+        # 도는 파드는 옛 값을 그대로 들고 있다(20.1)
+        checksum/config: {{ toYaml $svc.config | sha256sum }}
+        checksum/common: {{ toYaml $.Values.common | sha256sum }}
+    spec:
+      {{- if ne $name "web" }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        {{- if $svc.storage }}
+        fsGroup: 1000
+        {{- end }}
+      {{- end }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "eum.selectorLabels" $ctx | nindent 14 }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "eum.image" $ctx }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $svc.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ $.Release.Name }}-common
+            {{- if $svc.config }}
+            - configMapRef:
+                name: {{ include "eum.fullname" $ctx }}
+            {{- end }}
+          {{/* 넣을 것이 없으면 env 자체를 내보내지 않는다. 화면은 정적 파일만 내보내서
+               토큰도 데이터베이스도 브로커도 쓰지 않는다 */}}
+          {{- if or (ne $name "web") $svc.database $svc.messaging }}
+          env:
+            {{- if ne $name "web" }}
+            - name: TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Release.Name }}-secret
+                  key: TOKEN_SECRET
+            {{- end }}
+            {{- include "eum.dbEnv" $ctx | nindent 12 }}
+            {{- include "eum.brokerEnv" $ctx | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          {{- $probe := $svc.probePath | default "/actuator/health/readiness" }}
+          {{- $live := $svc.probePath | default "/actuator/health/liveness" }}
+          startupProbe:
+            httpGet:
+              path: {{ $probe }}
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: {{ $probe }}
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: {{ $live }}
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          {{- if $svc.storage }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ $svc.storage.mountPath }}
+          {{- end }}
+      terminationGracePeriodSeconds: 40
+      {{- if $svc.storage }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "eum.fullname" $ctx }}
+      {{- end }}
+{{- end }}

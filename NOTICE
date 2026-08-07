@@ -1,0 +1,29 @@
+이음 (eum)
+Copyright 2026 피자스튜디오
+
+이 소프트웨어는 전자정부 표준프레임워크 MSA 템플릿의 구조를 참고해 만들었습니다.
+
+  eGovFramework MSA Template (egovframe-msa-edu)
+  Copyright 한국지능정보사회진흥원 / 전자정부 표준프레임워크 센터
+  Licensed under the Apache License, Version 2.0
+  https://github.com/eGovFramework/egovframe-msa-edu
+
+Apache License 2.0 전문은 아래에서 볼 수 있습니다.
+  http://www.apache.org/licenses/LICENSE-2.0
+
+주요 참고 지점
+  - 예약 물품/신청/확인 세 서비스의 도메인 구조와 검증 흐름
+  - 감사 필드를 상위 클래스로 두는 방식
+  - JWT 토큰 필터와 권한 전파 구조
+
+달라진 점
+  - WebFlux + R2DBC 를 Web MVC + JPA 로 바꿨습니다
+  - 예약 도메인을 소상공인 지원금 도메인으로 옮겼습니다
+  - 지급·알림·야간 배치를 새로 만들었습니다
+  - 아웃박스·사가·멱등 처리를 더했습니다 (템플릿에는 없습니다)
+  - 서비스마다 데이터베이스와 계정을 갈랐습니다
+  - 게이트웨이를 Spring Cloud Gateway Server MVC 로 만들었습니다
+
+화면(eum-mono/frontend)
+  같은 저자의 다른 책(Spring + React) 예제 화면을 이 책의 API 규격에 맞춰 옮긴 것입니다.
+  이 책에서 화면 개발은 다루지 않습니다.

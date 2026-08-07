@@ -1,0 +1,65 @@
+# 노트북 kind 클러스터용.
+#
+# 관리형 클러스터와 달라지는 점만 여기에 모은다. 본문은 관리형 클러스터를 기준으로
+# 쓰고, 실습은 이 오버레이로 돌린다.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: eum
+
+resources:
+  - ../../base
+  - ../../db
+
+patches:
+  # 노트북 한 대에서는 세 벌을 띄울 여유가 없다
+  - target:
+      kind: Deployment
+      name: eum
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "384Mi"
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: eum
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+  - target:
+      kind: PodDisruptionBudget
+      name: eum
+    patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 1
+  # kind 기본 스토리지는 ReadWriteMany 를 주지 않는다.
+  # 파드를 늘렸을 때 첨부 파일이 어떻게 갈리는지 10.3 에서 이 차이로 확인한다.
+  - target:
+      kind: PersistentVolumeClaim
+      name: eum-attachments
+    patch: |-
+      - op: replace
+        path: /spec/accessModes
+        value: ["ReadWriteOnce"]
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: "1Gi"
+  # 노트북에서는 화면도 한 벌
+  - target:
+      kind: Deployment
+      name: eum-web
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1

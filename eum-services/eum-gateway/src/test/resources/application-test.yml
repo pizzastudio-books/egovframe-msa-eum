@@ -1,0 +1,5 @@
+token:
+  secret: eum_test_token_secret
+logging:
+  level:
+    root: warn

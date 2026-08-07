@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-common
+  labels:
+    app.kubernetes.io/part-of: eum
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  {{- range $k, $v := .Values.common }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.config }}
+{{- $ctx := dict "root" $ "svc" $svc "svcName" $name "Release" $.Release "Chart" $.Chart }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "eum.fullname" $ctx }}
+  labels:
+    {{- include "eum.labels" $ctx | nindent 4 }}
+data:
+  {{- if $svc.database }}
+  MYSQL_DATABASE: {{ $svc.database | quote }}
+  {{- end }}
+  {{- range $k, $v := $svc.config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

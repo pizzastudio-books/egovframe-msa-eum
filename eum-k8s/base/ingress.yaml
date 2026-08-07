@@ -1,0 +1,29 @@
+# 기관망 사용자가 들어오는 문(9.2).
+# 경로 분배와 TLS 종단은 여기서 끝난다. 게이트웨이가 할 일이 아니다(16.1).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eum
+  namespace: eum
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: eum.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: eum
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: eum-web
+                port:
+                  name: http

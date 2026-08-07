@@ -1,0 +1,162 @@
+# 관리형 클러스터 기준값. 노트북 실습은 values-local.yaml 로 덮는다.
+
+image:
+  # 폐쇄망에서는 반입 절차를 거친 사내 레지스트리를 적는다(20.3)
+  registry: ""
+  pullPolicy: IfNotPresent
+
+common:
+  SPRING_PROFILES_ACTIVE: "k8s"
+  TZ: "Asia/Seoul"
+  MYSQL_HOST: "eum-mysql"
+  MYSQL_PORT: "3306"
+  RABBITMQ_HOST: "eum-rabbitmq"
+  RABBITMQ_PORT: "5672"
+
+# 실습용이다. 운영에서는 이 값을 저장소에 두지 않고 기관 비밀 관리 체계로 넣는다(10.2).
+secrets:
+  TOKEN_SECRET: "eum_local_token_secret"
+  RABBITMQ_USER: "eum"
+  RABBITMQ_PASSWORD: "eum_rabbit"
+  CORE_MYSQL_USER: "eum_app"
+  CORE_MYSQL_PASSWORD: "eum_app"
+  NOTIFICATION_MYSQL_USER: "noti_app"
+  NOTIFICATION_MYSQL_PASSWORD: "noti_app"
+  PAYMENT_MYSQL_USER: "pay_app"
+  PAYMENT_MYSQL_PASSWORD: "pay_app"
+
+ingress:
+  enabled: true
+  className: nginx
+  host: eum.local
+  bodySize: "20m"
+  # /api 는 게이트웨이로, 나머지는 화면으로(16.1)
+  apiService: gateway
+  webService: web
+
+# ─────────────────────────────────────────────────────────────────────────
+# 서비스 목록.
+#
+# 손으로 쓰던 매니페스트에서는 배포·서비스·컨피그맵·HPA·PDB 다섯 장이 서비스마다
+# 있었다. 서비스를 하나 더 나누면 다섯 장을 또 만들어야 했다. 여기서는 이 목록에
+# 항목 하나를 더하면 된다.
+# ─────────────────────────────────────────────────────────────────────────
+services:
+  core:
+    image:
+      repository: eum/eum-core
+    port: 8080
+    replicas: 3
+    database: eum
+    messaging: true
+    resources:
+      requests: { cpu: "300m", memory: "512Mi" }
+      limits:   { cpu: "1",    memory: "1Gi" }
+    autoscaling:
+      enabled: true
+      minReplicas: 3
+      maxReplicas: 10
+      targetCPU: 60
+    disruptionBudget:
+      minAvailable: 2
+    # 증빙 첨부(10.3)
+    storage:
+      enabled: true
+      size: 10Gi
+      accessMode: ReadWriteMany
+      mountPath: /usr/app/attachments
+    config:
+      EUM_FILE_DIRECTORY: "/usr/app/attachments"
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "10"
+      EUM_OUTBOX_ENABLED: "true"
+      EUM_OUTBOX_INTERVAL_MILLIS: "2000"
+      # 타 기관 조회 방식. datasource 는 상대 DB 직결, api 는 연계 API(13.1)
+      EUM_LEGACY_MODE: "datasource"
+      EUM_LEGACY_API_BASE_URI: "http://mock-legacy"
+
+  notification:
+    image:
+      repository: eum/eum-notification
+    port: 8080
+    replicas: 2
+    database: eum_noti
+    messaging: true
+    resources:
+      requests: { cpu: "100m", memory: "256Mi" }
+      limits:   { cpu: "500m", memory: "512Mi" }
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPU: 60
+    disruptionBudget:
+      minAvailable: 1
+    config:
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      SPRING_CLOUD_STREAM_BINDINGS_NOTIFICATIONREQUESTED_IN_0_CONSUMER_MAXATTEMPTS: "3"
+
+  payment:
+    image:
+      repository: eum/eum-payment
+    port: 8080
+    replicas: 2
+    database: eum_pay
+    messaging: true
+    resources:
+      requests: { cpu: "200m", memory: "384Mi" }
+      limits:   { cpu: "1",    memory: "768Mi" }
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 4
+      targetCPU: 60
+    disruptionBudget:
+      minAvailable: 1
+    config:
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      EUM_OUTBOX_ENABLED: "true"
+      EUM_OUTBOX_INTERVAL_MILLIS: "2000"
+      EUM_BATCH_PAYMENT_ENABLED: "false"
+    # 야간 이체는 크론잡이 부른다(11.5)
+    cronJob:
+      enabled: true
+      schedule: "0 2 * * *"
+      timeZone: "Asia/Seoul"
+      args: ["--eum.batch.payment.run-once=true"]
+
+  gateway:
+    image:
+      repository: eum/eum-gateway
+    port: 8000
+    replicas: 2
+    messaging: false
+    resources:
+      requests: { cpu: "200m", memory: "384Mi" }
+      limits:   { cpu: "1",    memory: "768Mi" }
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPU: 60
+    disruptionBudget:
+      minAvailable: 1
+    config:
+      # 앱이 읽는 이름과 정확히 같아야 한다(16.2)
+      EUM_CORE_URI: "http://eum-core"
+      EUM_PAYMENT_URI: "http://eum-payment"
+
+  web:
+    image:
+      repository: eum/eum-web
+    port: 8080
+    replicas: 2
+    messaging: false
+    # 정적 파일만 내보낸다. 상태도 없고 스프링도 아니라 검사 경로가 다르다
+    probePath: /
+    resources:
+      requests: { cpu: "50m",  memory: "64Mi" }
+      limits:   { cpu: "200m", memory: "128Mi" }
+    autoscaling:
+      enabled: false
+    disruptionBudget:
+      minAvailable: 1

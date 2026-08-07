@@ -1,0 +1,96 @@
+# 이음 본체. 아직 나누지 않은 한 덩어리 그대로다(8.2).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eum
+  namespace: eum
+  labels:
+    app.kubernetes.io/name: eum
+    app.kubernetes.io/part-of: eum
+  annotations:
+    kubernetes.io/change-cause: "최초 배포"
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eum
+  # 배포하는 동안 접수 화면이 닫히지 않게 한다(11.3)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eum
+        app.kubernetes.io/part-of: eum
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      # 파드를 여러 영역에 흩어 놓는다. 한 영역이 통째로 죽어도 서비스가 이어진다(12.1)
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: eum
+      containers:
+        - name: eum
+          image: eum/eum-mono:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: eum-config
+            - secretRef:
+                name: eum-secret
+          # 자원을 밝히지 않으면 스케줄러가 판단할 근거가 없고, 한 파드가 노드를
+          # 잠식하면 옆 파드가 축출된다(11.2)
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          # 뜨는 중인 파드에 트래픽이 가지 않게 한다(11.1)
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # 처리 중인 요청을 끝내고 내려간다(11.1)
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          volumeMounts:
+            - name: attachments
+              mountPath: /usr/app/attachments
+      terminationGracePeriodSeconds: 40
+      volumes:
+        - name: attachments
+          persistentVolumeClaim:
+            claimName: eum-attachments

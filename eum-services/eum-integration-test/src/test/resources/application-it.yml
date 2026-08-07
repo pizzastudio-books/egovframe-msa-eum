@@ -1,0 +1,44 @@
+# 통합시험 프로필.
+#
+# 세 서비스가 한 JVM 에서 각자 컨텍스트로 돈다. 데이터베이스는 시험 클래스가 따로
+# 지정한다. 스케줄러는 전부 끈다 — 아웃박스 발송도 배치도 시험이 직접 부른다.
+# 저절로 돌면 무엇 때문에 통과했는지 알 수 없다.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate.dialect: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+  datasource:
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+
+token:
+  secret: eum_integration_test_secret
+  expiration-millis: 3600000
+
+eum:
+  outbox:
+    enabled: false
+  sample:
+    password: eum12345!
+  eligibility:
+    # 타 기관 조회는 이 시험의 관심사가 아니다. 규격이 오가는 것만 본다.
+    enabled: false
+  batch:
+    payment:
+      enabled: false
+      cron: "0 0 0 1 1 ?"
+  file:
+    directory: ${java.io.tmpdir}/eum-it-attachments
+
+logging:
+  level:
+    root: warn
+    com.pizzastudio.eum: info

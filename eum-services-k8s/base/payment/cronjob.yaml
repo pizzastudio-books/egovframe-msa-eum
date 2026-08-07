@@ -1,0 +1,67 @@
+# 야간 이체.
+#
+# 앱 안의 @Scheduled 를 그대로 두면 파드를 늘린 만큼 같은 배치가 겹쳐 돈다. 지급은
+# 겹치면 이중 이체가 된다. 그래서 배치는 워크로드로 떼어 낸다(11.5).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: eum-payment-batch
+  namespace: eum
+spec:
+  schedule: "0 2 * * *"
+  timeZone: "Asia/Seoul"
+  # 앞 회차가 아직 돌고 있으면 건너뛴다. 겹쳐 도는 것보다 한 번 거르는 편이 낫다
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          containers:
+            - name: batch
+              image: eum/eum-payment:1.0.0
+              imagePullPolicy: IfNotPresent
+              args: ["--eum.batch.payment.run-once=true"]
+              envFrom:
+                - configMapRef:
+                    name: eum-common
+                - configMapRef:
+                    name: eum-payment
+              env:
+                - name: EUM_BATCH_PAYMENT_ENABLED
+                  value: "true"
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: eum-secret
+                      key: PAY_MYSQL_USER
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: eum-secret
+                      key: PAY_MYSQL_PASSWORD
+                - name: RABBITMQ_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: eum-secret
+                      key: RABBITMQ_USER
+                - name: RABBITMQ_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: eum-secret
+                      key: RABBITMQ_PASSWORD
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "384Mi"
+                limits:
+                  cpu: "1"
+                  memory: "768Mi"

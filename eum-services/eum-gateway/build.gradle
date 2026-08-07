@@ -1,0 +1,22 @@
+// 게이트웨이 — 토큰 검증·권한 전파·감사 로그(16장).
+//
+// 경로 분배와 TLS 종단은 인그레스가 맡는다. 여기서 하지 않는다. 게이트웨이가
+// 무엇을 하고 무엇을 하지 않는지는 16.1 에서 갈라 둔다.
+//
+// Spring Cloud Gateway 는 리액티브가 기본이지만 MVC 기반 변형이 있다. 이 책은
+// 리액티브를 쓰지 않으므로 그쪽을 고른다(16.2).
+plugins {
+    id 'org.springframework.boot'
+}
+
+dependencies {
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    testImplementation 'org.springframework.security:spring-security-test'
+}

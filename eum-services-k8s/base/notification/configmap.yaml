@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eum-notification
+  namespace: eum
+data:
+  MYSQL_DATABASE: "eum_noti"
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+  # 세 번 실패하면 죽은편지 큐로 보낸다. 발송 하나 때문에 큐가 막히지 않게 한다(15.4)
+  SPRING_CLOUD_STREAM_BINDINGS_NOTIFICATIONREQUESTED_IN_0_CONSUMER_MAXATTEMPTS: "3"

@@ -1,0 +1,37 @@
+{{- if .Values.ingress.enabled }}
+{{/*
+화면과 API 를 여기서 가른다. API 는 전부 게이트웨이를 지나간다. 서비스별 경로를
+인그레스에 늘어놓지 않는 이유는 16.1 에 있다.
+*/}}
+{{- $api := dict "root" . "svc" (get .Values.services .Values.ingress.apiService) "svcName" .Values.ingress.apiService "Release" .Release "Chart" .Chart }}
+{{- $web := dict "root" . "svc" (get .Values.services .Values.ingress.webService) "svcName" .Values.ingress.webService "Release" .Release "Chart" .Chart }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/part-of: eum
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ .Values.ingress.bodySize | quote }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "eum.fullname" $api }}
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "eum.fullname" $web }}
+                port:
+                  name: http
+{{- end }}

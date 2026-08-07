@@ -1,0 +1,9 @@
+// 서비스 사이에 오가는 이벤트 규격만 담는다.
+// 업무 코드는 들어오지 않는다. 이 모듈이 뚱뚱해지면 서비스를 나눈 뜻이 없어진다.
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api 'com.fasterxml.jackson.core:jackson-annotations:2.18.2'
+}

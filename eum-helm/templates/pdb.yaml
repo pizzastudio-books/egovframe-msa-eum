@@ -1,0 +1,17 @@
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.disruptionBudget }}
+{{- $ctx := dict "root" $ "svc" $svc "svcName" $name "Release" $.Release "Chart" $.Chart }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "eum.fullname" $ctx }}
+  labels:
+    {{- include "eum.labels" $ctx | nindent 4 }}
+spec:
+  minAvailable: {{ $svc.disruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "eum.selectorLabels" $ctx | nindent 6 }}
+{{- end }}
+{{- end }}

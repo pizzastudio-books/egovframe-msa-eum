@@ -1,0 +1,22 @@
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.storage }}
+{{- if $svc.storage.enabled }}
+{{- $ctx := dict "root" $ "svc" $svc "svcName" $name "Release" $.Release "Chart" $.Chart }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "eum.fullname" $ctx }}
+  labels:
+    {{- include "eum.labels" $ctx | nindent 4 }}
+spec:
+  accessModes: [{{ $svc.storage.accessMode | quote }}]
+  {{- if $svc.storage.className }}
+  storageClassName: {{ $svc.storage.className }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $svc.storage.size }}
+{{- end }}
+{{- end }}
+{{- end }}

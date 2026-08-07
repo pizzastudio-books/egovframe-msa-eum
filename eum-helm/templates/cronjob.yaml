@@ -1,0 +1,53 @@
+{{/*
+앱 안의 @Scheduled 를 그대로 두면 파드를 늘린 만큼 같은 배치가 겹쳐 돈다. 지급은
+겹치면 이중 이체가 된다. 그래서 배치는 워크로드로 떼어 낸다(11.5).
+*/}}
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.cronJob }}
+{{- if $svc.cronJob.enabled }}
+{{- $ctx := dict "root" $ "svc" $svc "svcName" $name "Release" $.Release "Chart" $.Chart }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "eum.fullname" $ctx }}-batch
+  labels:
+    {{- include "eum.labels" $ctx | nindent 4 }}
+spec:
+  schedule: {{ $svc.cronJob.schedule | quote }}
+  timeZone: {{ $svc.cronJob.timeZone | quote }}
+  # 앞 회차가 아직 돌고 있으면 건너뛴다
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          containers:
+            - name: batch
+              image: {{ include "eum.image" $ctx }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              args: {{ toYaml $svc.cronJob.args | nindent 16 }}
+              envFrom:
+                - configMapRef:
+                    name: {{ $.Release.Name }}-common
+                - configMapRef:
+                    name: {{ include "eum.fullname" $ctx }}
+              env:
+                - name: EUM_BATCH_PAYMENT_ENABLED
+                  value: "true"
+                {{- include "eum.dbEnv" $ctx | nindent 16 }}
+                {{- include "eum.brokerEnv" $ctx | nindent 16 }}
+              resources:
+                {{- toYaml $svc.resources | nindent 16 }}
+{{- end }}
+{{- end }}
+{{- end }}

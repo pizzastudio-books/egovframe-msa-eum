@@ -1,0 +1,10 @@
+rootProject.name = 'eum-services'
+
+include 'eum-contract'
+include 'eum-core'
+include 'eum-notification'
+include 'eum-payment'
+include 'eum-gateway'
+
+// 서비스 사이를 잇는 통합시험(배포물 아님)
+include 'eum-integration-test'

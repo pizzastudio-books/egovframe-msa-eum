@@ -1,0 +1,23 @@
+// 알림 서비스 — 첫 분리 대상(15장).
+//
+// 본체에서 떼어낸 이유는 위험이 가장 작기 때문이다. 발송이 실패해도 접수는 계속돼야
+// 하고, 외부 문자·메일 연계라 지연 특성도 다르다.
+plugins {
+    id 'org.springframework.boot'
+}
+
+dependencies {
+    implementation project(':eum-contract')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    implementation 'org.springframework.cloud:spring-cloud-stream'
+    implementation 'org.springframework.cloud:spring-cloud-stream-binder-rabbit'
+
+    implementation 'com.mysql:mysql-connector-j:8.4.0'
+    runtimeOnly 'com.h2database:h2'
+
+    testImplementation 'org.springframework.cloud:spring-cloud-stream-test-binder'
+}

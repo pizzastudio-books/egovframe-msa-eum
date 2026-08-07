@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:eum_pay_test;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate.dialect: org.hibernate.dialect.H2Dialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/eum-payment-schema.sql
+
+eum:
+  outbox:
+    # 시험에서는 스케줄러가 끼어들지 않게 끄고 직접 부른다
+    enabled: false
+  batch:
+    payment:
+      enabled: false
+
+logging:
+  level:
+    root: warn

@@ -1,0 +1,155 @@
+# 실습용 MySQL — 서비스 분리본.
+#
+# **운영 전제는 클러스터 밖이다.** 관리형 DB 를 쓰거나 기관이 이미 운영하는 DBMS 에
+# 붙는다. 데이터는 파드처럼 사라지면 안 되고, 공공에서 DB 는 별도 조직이 백업과
+# 이중화를 맡는 자산이기 때문이다. 그 판단을 10.3 에서 다룬다.
+#
+# 여기서는 노트북 한 대에서 실습을 끝내기 위해 클러스터 안에 둔다.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eum-mysql-init
+  namespace: eum
+data:
+  00-databases.sql: |
+    -- 서비스마다 자기 데이터베이스와 자기 계정을 갖는다.
+    --
+    -- 표준프레임워크 MSA 템플릿은 여기까지 가지 않는다. 여섯 서비스가 계정 하나를
+    -- 나눠 쓰고 그 계정에 모든 데이터베이스 전권이 있다. 그러면 경계가 코드에만
+    -- 남고, 급할 때 옆 서비스 표를 직접 읽는 코드가 들어간다. 막을 방법이 없다.
+    --
+    -- 아래처럼 갈라 두면 알림이 신청서를 읽으려 할 때 권한 오류로 막힌다(13.2).
+    CREATE DATABASE IF NOT EXISTS eum       DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS eum_noti  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS eum_pay   DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS bizinfo   DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS taxinfo   DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+    CREATE USER IF NOT EXISTS 'eum_app'@'%'  IDENTIFIED BY 'eum_app';
+    CREATE USER IF NOT EXISTS 'noti_app'@'%' IDENTIFIED BY 'noti_app';
+    CREATE USER IF NOT EXISTS 'pay_app'@'%'  IDENTIFIED BY 'pay_app';
+
+    GRANT ALL PRIVILEGES ON eum.*      TO 'eum_app'@'%';
+    GRANT SELECT          ON bizinfo.* TO 'eum_app'@'%';
+    GRANT SELECT          ON taxinfo.* TO 'eum_app'@'%';
+    GRANT ALL PRIVILEGES ON eum_noti.* TO 'noti_app'@'%';
+    GRANT ALL PRIVILEGES ON eum_pay.*  TO 'pay_app'@'%';
+    FLUSH PRIVILEGES;
+
+  # 타 기관 테이블과 자료.
+  #
+  # 데이터베이스만 만들어 두면 이음이 붙기는 하는데 조회에서 터진다.
+  # 실제로 겪었다 — 파드는 정상으로 뜨고 로그인도 되는데, 접수만 500 이었다.
+  # 실제 사업에서는 상대 기관이 만든다. 실습이라 여기서 함께 넣는다.
+  01-bizinfo.sql: |
+    USE bizinfo;
+    -- 가상 행정정보 (타 기관 데이터베이스)
+    -- 실제로는 다른 기관이 운영하고 이음은 조회 권한만 받아 직접 붙는다.
+
+    CREATE TABLE IF NOT EXISTS biz_registration (
+        business_no    VARCHAR(20)  NOT NULL COMMENT '사업자등록번호',
+        business_name  VARCHAR(200)          COMMENT '상호',
+        open_date      DATE                  COMMENT '개업일',
+        status_code    VARCHAR(2)            COMMENT '상태 01:영업 02:휴업 03:폐업',
+        PRIMARY KEY (business_no)
+    );
+
+    INSERT IGNORE INTO biz_registration (business_no, business_name, open_date, status_code) VALUES
+     ('123-45-67890', '가나다상회', '2019-03-02', '01'),
+     ('234-56-78901', '라마바식당', '2021-07-15', '01'),
+     ('345-67-89012', '사아자문구', '2018-01-10', '03');
+  02-taxinfo.sql: |
+    USE taxinfo;
+    -- 가상 국세 정보 (타 기관 데이터베이스)
+
+    CREATE TABLE IF NOT EXISTS tax_arrears (
+        arrears_id      BIGINT       NOT NULL AUTO_INCREMENT COMMENT '체납 id',
+        business_no     VARCHAR(20)  NOT NULL COMMENT '사업자등록번호',
+        arrears_amount  BIGINT                COMMENT '체납액',
+        arrears_date    DATE                  COMMENT '체납 발생일',
+        PRIMARY KEY (arrears_id)
+    );
+
+    INSERT IGNORE INTO tax_arrears (arrears_id, business_no, arrears_amount, arrears_date) VALUES
+     (1, '234-56-78901', 1500000, '2025-11-30');
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: eum-mysql-data
+  namespace: eum
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: eum-mysql
+  namespace: eum
+spec:
+  serviceName: eum-mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eum-mysql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eum-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          args:
+            - "--character-set-server=utf8mb4"
+            - "--collation-server=utf8mb4_unicode_ci"
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "root"
+            - name: TZ
+              value: "Asia/Seoul"
+          ports:
+            - name: mysql
+              containerPort: 3306
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -uroot -proot"]
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: eum-mysql-data
+        - name: init
+          configMap:
+            name: eum-mysql-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eum-mysql
+  namespace: eum
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: eum-mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

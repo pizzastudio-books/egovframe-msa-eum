@@ -1,0 +1,23 @@
+# 접수 마감 직전 폭주에 대비해 파드를 늘린다(11.5).
+#
+# 다만 무한정 늘릴 수 없다. 파드가 늘면 DB 접속도 그만큼 늘어
+# 커넥션 풀 × 파드 수가 DB 최대 접속 수에 먼저 닿는다(10.4).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: eum
+  namespace: eum
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: eum
+  minReplicas: 3
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60

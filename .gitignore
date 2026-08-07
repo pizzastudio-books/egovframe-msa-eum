@@ -1,0 +1,25 @@
+# 빌드 산출물
+build/
+.gradle/
+bin/
+out/
+target/
+*.jar
+# 그래들 래퍼는 반드시 담는다. 이것이 없으면 독자가 ./gradlew 를 못 돌리고,
+# 그래들 판이 사람마다 달라져 "제 컴퓨터에서는 안 되는데" 가 시작된다.
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# 프론트엔드
+node_modules/
+dist/
+.vite/
+
+# 편집기
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# 로컬 설정
+*.local
+.env.local

@@ -1,0 +1,17 @@
+# 환경마다 달라지는 값. 이미지 안에 굳히지 않는다(10.1).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eum-config
+  namespace: eum
+data:
+  SPRING_PROFILES_ACTIVE: "mysql"
+  MYSQL_HOST: "eum-mysql"
+  MYSQL_PORT: "3306"
+  TZ: "Asia/Seoul"
+  # 첨부 파일을 쌓을 위치. 볼륨을 이 경로에 붙인다(10.3)
+  EUM_FILE_DIRECTORY: "/usr/app/attachments"
+  # 커넥션 풀. 파드를 늘리면 이 값 × 파드 수만큼 DB 접속이 생긴다(10.4)
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "10"
+  # 배치는 CronJob 이 맡는다. 앱 안의 스케줄은 끈다(11.5)
+  EUM_BATCH_PAYMENT_ENABLED: "false"

@@ -1,0 +1,23 @@
+// 지급 서비스 — 17장에서 분리, 18장 사가의 무대.
+//
+// 계좌라는 민감 자료, 다른 보존·감사 요건, 야간 대량이라는 다른 부하 특성,
+// 외부 금융망 연계. 인스턴스를 나눌 근거가 실제로 있는 유일한 업무다.
+plugins {
+    id 'org.springframework.boot'
+}
+
+dependencies {
+    implementation project(':eum-contract')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    implementation 'org.springframework.cloud:spring-cloud-stream'
+    implementation 'org.springframework.cloud:spring-cloud-stream-binder-rabbit'
+
+    implementation 'com.mysql:mysql-connector-j:8.4.0'
+    runtimeOnly 'com.h2database:h2'
+
+    testImplementation 'org.springframework.cloud:spring-cloud-stream-test-binder'
+}

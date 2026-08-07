@@ -1,0 +1,80 @@
+# 클러스터에서 띄울 때.
+#
+# 값은 컨피그맵과 시크릿이 환경변수로 넣는다. 이 파일에는 "어디서 읽는가"만 적고
+# 실제 값은 적지 않는다. 이미지 안에 환경을 굳히지 않는다(5.2·10.1).
+
+spring:
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE:eum}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate.dialect: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+
+  sql:
+    init:
+      # 스키마는 CREATE TABLE IF NOT EXISTS 라 여러 파드가 같이 떠도 한 번만 만들어진다.
+      # 운영에서는 이것도 끄고 형상관리된 DDL 로 따로 적용한다(21.1).
+      mode: always
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+
+# 프로브가 부르는 경로. 이것을 켜지 않으면 /actuator/health/readiness 가 404 라
+# 파드가 영영 준비되지 않는다(11.1).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+eum:
+  file:
+    directory: ${EUM_FILE_DIRECTORY:/usr/app/attachments}
+  legacy:
+    # datasource 면 상대 기관 DB 에 직접 붙고, api 면 상대가 열어 준 API 를 부른다.
+    # 13.1 에서 이 값을 바꾼다. 업무 코드는 손대지 않는다.
+    mode: ${EUM_LEGACY_MODE:datasource}
+    api:
+      base-uri: ${EUM_LEGACY_API_BASE_URI:http://mock-legacy}
+      connect-timeout-millis: ${EUM_LEGACY_API_CONNECT_TIMEOUT:1000}
+      read-timeout-millis: ${EUM_LEGACY_API_READ_TIMEOUT:2000}
+    # 타 기관 테이블은 상대가 만든다. 이음은 조회만 한다.
+    init: false
+    bizinfo:
+      url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/bizinfo?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    taxinfo:
+      url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/taxinfo?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+  outbox:
+    enabled: ${EUM_OUTBOX_ENABLED:true}
+    interval-millis: ${EUM_OUTBOX_INTERVAL_MILLIS:2000}
+
+token:
+  secret: ${TOKEN_SECRET}
+
+logging:
+  level:
+    root: info

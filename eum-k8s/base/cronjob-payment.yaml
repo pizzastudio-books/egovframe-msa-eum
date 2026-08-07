@@ -1,0 +1,45 @@
+# 야간 지급 배치(11.5).
+#
+# 모놀리스에서는 @Scheduled 가 앱 안에서 돌았다. 파드를 세 벌로 늘리는 순간
+# 같은 배치가 세 번 돈다. 그래서 배치를 앱에서 떼어 CronJob 으로 옮기고,
+# 앱 쪽 스케줄은 EUM_BATCH_PAYMENT_ENABLED=false 로 꺼 둔다.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: eum-payment-batch
+  namespace: eum
+spec:
+  schedule: "0 2 * * *"
+  timeZone: "Asia/Seoul"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+          containers:
+            - name: payment-batch
+              image: eum/eum-mono:1.0.0
+              imagePullPolicy: IfNotPresent
+              # 웹 서버를 띄우지 않고 배치만 돌린 뒤 끝낸다
+              args:
+                - "--spring.main.web-application-type=none"
+                - "--eum.batch.payment.run-once=true"
+              envFrom:
+                - configMapRef:
+                    name: eum-config
+                - secretRef:
+                    name: eum-secret
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "512Mi"
+                limits:
+                  cpu: "1"
+                  memory: "1Gi"

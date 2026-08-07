@@ -1,0 +1,11 @@
+# 증빙 첨부. 파드가 죽어도 남아야 한다(10.3).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: eum-core-attachments
+  namespace: eum
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 10Gi

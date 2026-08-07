@@ -1,0 +1,18 @@
+apiVersion: v2
+name: eum
+description: 소상공인 지원금 신청·심사 시스템 이음 — 서비스 분리본
+type: application
+
+# 차트 자체의 판. 매니페스트를 고칠 때마다 올린다.
+version: 1.0.0
+
+# 담고 있는 애플리케이션의 판. 이미지 태그의 기본값이 된다.
+appVersion: "1.0.0"
+
+kubeVersion: ">=1.28.0-0"
+
+keywords:
+  - egovframe
+  - msa
+maintainers:
+  - name: 이음 사업단

@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:eum-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate.dialect: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/eum-core-schema.sql
+      data-locations: classpath:db/eum-core-data.sql
+
+token:
+  secret: eum_test_token_secret
+  expiration-millis: 3600000
+
+eum:
+  sample:
+    password: eum12345!
+  eligibility:
+    enabled: true
+    arrears-limit: 1000000
+  batch:
+    payment:
+      # 시험에서는 배치가 저절로 돌지 않게 아주 먼 시각으로 둔다
+      cron: "0 0 0 1 1 ?"
+      limit: 500
+
+logging:
+  level:
+    root: warn
+    com.pizzastudio.eum.core: info
+
+# 첨부 파일은 시험마다 임시 폴더에 쌓는다
+eum.file.directory: ${java.io.tmpdir}/eum-test-attachments

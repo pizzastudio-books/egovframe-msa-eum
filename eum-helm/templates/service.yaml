@@ -1,0 +1,18 @@
+{{- range $name, $svc := .Values.services }}
+{{- $ctx := dict "root" $ "svc" $svc "svcName" $name "Release" $.Release "Chart" $.Chart }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "eum.fullname" $ctx }}
+  labels:
+    {{- include "eum.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "eum.selectorLabels" $ctx | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}

@@ -1,0 +1,16 @@
+# 네 서비스가 함께 쓰는 값.
+#
+# 서비스마다 다른 값은 각자 컨피그맵에 둔다. 여기에 다 몰면 알림 설정을 고치려고
+# 지급까지 다시 뜨는 일이 생긴다.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eum-common
+  namespace: eum
+data:
+  SPRING_PROFILES_ACTIVE: "k8s"
+  TZ: "Asia/Seoul"
+  MYSQL_HOST: "eum-mysql"
+  MYSQL_PORT: "3306"
+  RABBITMQ_HOST: "eum-rabbitmq"
+  RABBITMQ_PORT: "5672"

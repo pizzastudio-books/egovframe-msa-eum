@@ -1,0 +1,44 @@
+# 화면.
+#
+# 이 책에서 화면 개발은 다루지 않는다. 빌드한 정적 파일을 nginx 한 장에 담아 올릴
+# 뿐이다. 화면이 부르는 곳은 /api 하나이고, 그 뒤가 몇 개로 나뉘었는지는 화면이
+# 알지 못한다. 서비스를 넷으로 갈랐는데 화면을 고치지 않아도 되는 이유가 이것이다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eum-web
+  namespace: eum
+  labels:
+    app.kubernetes.io/name: eum-web
+    app.kubernetes.io/part-of: eum
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eum-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eum-web
+        app.kubernetes.io/part-of: eum
+    spec:
+      containers:
+        - name: eum-web
+          image: eum/eum-web:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10

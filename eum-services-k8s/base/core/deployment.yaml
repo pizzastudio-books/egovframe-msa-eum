@@ -1,0 +1,114 @@
+# 본체 — 회원·공통·지원사업·신청·심사.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eum-core
+  namespace: eum
+  labels:
+    app.kubernetes.io/name: eum-core
+    app.kubernetes.io/part-of: eum
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: eum-core
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eum-core
+        app.kubernetes.io/part-of: eum
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: eum-core
+      containers:
+        - name: eum-core
+          image: eum/eum-core:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: eum-common
+            - configMapRef:
+                name: eum-core
+          env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: eum-secret
+                  key: CORE_MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: eum-secret
+                  key: CORE_MYSQL_PASSWORD
+            - name: TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: eum-secret
+                  key: TOKEN_SECRET
+            - name: RABBITMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: eum-secret
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: eum-secret
+                  key: RABBITMQ_PASSWORD
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          volumeMounts:
+            - name: attachments
+              mountPath: /usr/app/attachments
+      terminationGracePeriodSeconds: 40
+      volumes:
+        - name: attachments
+          persistentVolumeClaim:
+            claimName: eum-core-attachments

@@ -1,0 +1,38 @@
+# 노트북에 띄우는 실습용 클러스터.
+#
+# 도커 데스크톱의 쿠버네티스를 쓰지 않는다. 기관 규모에 따라 도커 데스크톱이 유료라
+# 설치 자체가 안 되는 자리가 있다. kind 는 컨테이너 하나를 노드처럼 쓰는 방식이고
+# 도커 엔진이나 포드맨만 있으면 된다(부록 A).
+#
+#   kind create cluster --config kind-cluster.yaml
+#
+# 노드를 셋 두는 이유가 있다. 한 대짜리로는 파드를 여러 노드에 흩어 놓는 이야기(12.1)나
+# 노드를 비우는 이야기(11.4)를 재현할 수 없다.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: eum
+
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      # 인그레스 컨트롤러가 이 노드에만 뜨도록 표를 붙인다
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # 노트북의 8080 을 클러스터 인그레스로 잇는다.
+      # http://eum.local:8080 으로 들어간다(/etc/hosts 에 한 줄 필요)
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: zone-a
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: zone-b

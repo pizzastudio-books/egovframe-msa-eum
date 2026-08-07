@@ -1,0 +1,74 @@
+// 이음 — 서비스 분리본 (4~5부)
+//
+// 한 덩어리였던 이음을 네 벌로 나눈다.
+//   eum-gateway       토큰 검증·권한 전파·감사 로그
+//   eum-core          회원·공통·지원사업·신청·심사
+//   eum-notification  문자·메일 발송        (15장에서 첫 분리)
+//   eum-payment       지급 지시·이체 연계   (17장에서 분리, 18장 사가)
+//
+// eum-contract 는 서비스 사이에 오가는 이벤트 규격만 담는다. 업무 코드를 공유하는
+// 공통 모듈을 두지 않는 이유는 2.4 에서 밝힌다(템플릿의 module-common 이 리액티브
+// 스택을 모든 소비자에게 새어 보내는 것을 보았다).
+
+plugins {
+    id 'org.springframework.boot' version '3.5.6' apply false
+    id 'io.spring.dependency-management' version '1.1.0' apply false
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+
+    group = 'com.pizzastudio.eum'
+    version = '1.0.0'
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://maven.egovframe.go.kr/maven/" }
+    }
+
+    ext {
+        set('springBootVersion', '3.5.6')
+        set('springCloudVersion', '2025.0.0')
+    }
+
+    dependencyManagement {
+        imports {
+            // 부트 플러그인을 붙이지 않는 모듈(eum-contract)도 버전을 알 수 있게 한다
+            mavenBom "org.springframework.boot:spring-boot-dependencies:${springBootVersion}"
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        }
+    }
+
+    dependencies {
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+        testCompileOnly 'org.projectlombok:lombok'
+        testAnnotationProcessor 'org.projectlombok:lombok'
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    tasks.withType(JavaCompile) {
+        options.compilerArgs.add('-parameters')
+        options.encoding = 'UTF-8'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+
+// 부트 플러그인을 붙인 모듈은 실행 가능한 jar 이름을 app.jar 로 고정한다.
+// build/libs 에 plain jar 도 함께 있어, Dockerfile 에서 *.jar 로 받으면 어느 쪽이
+// 들어갈지 순서에 달린다. plain jar 가 들어가면 기본 클래스를 못 찾고 죽는다.
+subprojects {
+    plugins.withId('org.springframework.boot') {
+        tasks.named('bootJar') {
+            archiveFileName = 'app.jar'
+        }
+    }
+}
