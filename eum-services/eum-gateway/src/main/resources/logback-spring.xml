@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  로그 형식.
+
+  요청 식별자(`reqId`)를 모든 줄에 찍는다. 서비스가 넷이면 한 요청이 로그 네 곳에
+  흩어지는데, 이 값이 없으면 이을 방법이 없다. 실제로 접수 한 건을 따라가 봤더니
+  게이트웨이·본체 로그에서는 신청번호조차 안 나왔다(19.1).
+
+  값은 인그레스 컨트롤러가 붙이는 `X-Request-ID` 를 그대로 쓴다. 우리가 새로 만들면
+  인그레스 로그와 이어지지 않는다.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{reqId:--}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

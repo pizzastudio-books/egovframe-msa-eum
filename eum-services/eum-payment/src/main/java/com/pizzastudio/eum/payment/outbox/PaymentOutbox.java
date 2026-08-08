@@ -44,7 +44,9 @@ public class PaymentOutbox {
                 .eventId(eventId)
                 .eventName(eventName)
                 .aggregateId(aggregateId)
-                .payload(objectMapper.writeValueAsString(payload))
+                .requestId(org.slf4j.MDC.get(
+                com.pizzastudio.eum.payment.common.RequestIdFilter.MDC_KEY))
+            .payload(objectMapper.writeValueAsString(payload))
                 .build());
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new IllegalStateException("이벤트를 직렬화하지 못했습니다.", e);
@@ -63,6 +65,10 @@ public class PaymentOutbox {
                 streamBridge.send(event.getEventName() + "-out-0",
                     MessageBuilder.withPayload(event.getPayload())
                         .setHeader("eventId", event.getEventId())
+                        // 요청 식별자를 함께 실어 보낸다. 받는 쪽이 이것을 MDC 에 넣으면
+                        // 비동기 흐름까지 한 요청으로 이어진다(19.1).
+                        .setHeader("X-Request-ID",
+                            event.getRequestId() == null ? "" : event.getRequestId())
                         .setHeader("contentType", "application/json")
                         .build());
                 event.markPublished();

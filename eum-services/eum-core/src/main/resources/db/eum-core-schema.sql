@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS outbox_event (
     event_name     VARCHAR(100)  NOT NULL COMMENT '이벤트 이름',
     aggregate_id   VARCHAR(40)            COMMENT '가리키는 업무 자료',
     payload        VARCHAR(4000) NOT NULL COMMENT '본문(JSON)',
+    request_id     VARCHAR(64)            COMMENT '이 이벤트를 만든 요청의 식별자(19.1)',
     published_at   DATETIME               COMMENT '발행 일시. NULL 이면 아직 안 보냄',
     attempt_count  INT           NOT NULL DEFAULT 0 COMMENT '발행 시도 횟수',
     created_at     DATETIME      NOT NULL COMMENT '생성 일시',

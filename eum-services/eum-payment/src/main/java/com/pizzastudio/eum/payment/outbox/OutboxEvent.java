@@ -41,6 +41,15 @@ public class OutboxEvent {
     @Column(name = "payload", length = 4000, nullable = false)
     private String payload;
 
+    /**
+     * 이 이벤트를 만든 요청의 식별자(19.1).
+     *
+     * <p>비동기 흐름은 여기서 끊긴다 — 발행은 2초 뒤 다른 스레드에서 일어나므로 요청의
+     * MDC 가 남아 있지 않다. 그래서 값을 표에 적어 두었다가 발행할 때 헤더에 실어 보낸다.</p>
+     */
+    @Column(name = "request_id", length = 64)
+    private String requestId;
+
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
@@ -51,11 +60,13 @@ public class OutboxEvent {
     private LocalDateTime createdAt;
 
     @Builder
-    public OutboxEvent(String eventId, String eventName, String aggregateId, String payload) {
+    public OutboxEvent(String eventId, String eventName, String aggregateId, String payload,
+        String requestId) {
         this.eventId = eventId;
         this.eventName = eventName;
         this.aggregateId = aggregateId;
         this.payload = payload;
+        this.requestId = requestId;
         this.attemptCount = 0;
         this.createdAt = LocalDateTime.now();
     }

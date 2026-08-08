@@ -31,6 +31,7 @@ import com.pizzastudio.eum.core.program.domain.Program;
 import com.pizzastudio.eum.core.program.service.ProgramService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 지원금 신청.
@@ -39,6 +40,7 @@ import lombok.RequiredArgsConstructor;
  * 어느 하나가 실패하면 전부 되돌아간다. 이 단순함이 지금은 이점이지만, 4부에서 지급과
  * 알림을 떼어내는 순간 성립하지 않는다. 그 자리가 사가가 필요해지는 지점이다.</p>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -70,6 +72,12 @@ public class ApplicationService {
 
         Application saved = applicationRepository.insert(saveRequestDto.toEntity());
         saved.setProgram(program);
+
+        // 업무가 무엇을 했는지 한 줄 남긴다. 요청 식별자는 로그 형식이 앞머리에 찍는다.
+        // **식별자만 붙이고 남길 로그가 없으면 이을 것이 없다** — 실제로 그랬다.
+        // 게이트웨이와 알림에는 식별자가 찍히는데 본체만 0건이었다(19.1).
+        log.info("접수 신청번호={} 신청자={} 사업={} 금액={}",
+            saved.getApplicationId(), saved.getApplicantId(), program.getProgramId(), saved.getAmount());
 
         notificationRequests.request(saved.getApplicantId(), "email",
             "지원금 신청이 접수되었습니다",

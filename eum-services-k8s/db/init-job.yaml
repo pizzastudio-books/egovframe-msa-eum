@@ -39,6 +39,23 @@ spec:
                 echo "  $f"
                 mysql -h eum-mysql -uroot -p"$MYSQL_ROOT_PASSWORD" < "$f"
               done
+              # 표는 CREATE TABLE IF NOT EXISTS 라 이미 있으면 그대로다. **칼럼을 더하는 것은
+              # 별개 일이다.** 19.1 에서 outbox_event 에 request_id 를 더하며 겪었다 —
+              # 애플리케이션 초기화로는 안 되고, MySQL 8.4 는 ADD COLUMN IF NOT EXISTS 도
+              # 지원하지 않는다. 그래서 있는지 보고 없을 때만 더한다(11.4).
+              echo "▶ 칼럼 변경을 적용합니다"
+              for pair in "eum outbox_event request_id varchar(64)" "eum_pay outbox_event request_id varchar(64)"; do
+                set -- $pair
+                HAS_COL=$($M -e "select count(*) from information_schema.columns
+                                 where table_schema='"'"'$1'"'"' and table_name='"'"'$2'"'"' and column_name='"'"'$3'"'"';")
+                if [ "$HAS_COL" = "0" ]; then
+                  echo "  $1.$2 에 $3 을 더합니다"
+                  $M -e "alter table $1.$2 add column $3 $4 null;"
+                else
+                  echo "  $1.$2.$3 이미 있음"
+                fi
+              done
+
               echo "▶ 적용 결과"
               mysql -h eum-mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N \
                 -e "select concat('  계정 ', user) from mysql.user where user like '%_app';"

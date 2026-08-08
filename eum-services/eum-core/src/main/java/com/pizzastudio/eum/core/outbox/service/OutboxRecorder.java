@@ -33,6 +33,8 @@ public class OutboxRecorder {
             .eventId(eventId)
             .eventName(eventName)
             .aggregateId(aggregateId)
+            .requestId(org.slf4j.MDC.get(
+                com.pizzastudio.eum.core.common.RequestIdFilter.MDC_KEY))
             .payload(serialize(payload))
             .build());
         return eventId;

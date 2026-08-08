@@ -26,10 +26,14 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>사슬 바깥이면 {@code SecurityContextHolder} 가 이미 비어 있다. 그래서 주체는
  * {@link AuthenticationFilter#PRINCIPAL_ATTRIBUTE} 로 받는다.</p>
+ *
+ * <p><b>요청 식별자 필터보다는 안쪽이어야 한다.</b> 바깥에 두었더니 감사 줄에 식별자가
+ * 안 찍혔다 — 그때는 MDC 가 아직 비어 있다. 본체·알림 로그에는 찍히는데 정작 게이트웨이
+ * 감사만 빠져, 요청을 어디서부터 따라가야 할지 알 수 없었다(19.1).</p>
  */
 @Slf4j
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class AuditLogFilter extends OncePerRequestFilter {
 
     /**
@@ -53,6 +57,8 @@ public class AuditLogFilter extends OncePerRequestFilter {
         } finally {
             Object principal = request.getAttribute(AuthenticationFilter.PRINCIPAL_ATTRIBUTE);
             Object reason = request.getAttribute(AuthenticationFilter.REJECT_REASON_ATTRIBUTE);
+            // 요청 식별자는 로그 형식(logback-spring.xml)이 앞머리에 찍는다.
+            // 감사 줄에도 그 값이 붙으므로 뒤쪽 서비스 로그와 이어진다(19.1).
             log.info("감사 user={} method={} path={} status={} 소요={}ms{}",
                 principal == null ? "-" : principal,
                 request.getMethod(), request.getRequestURI(),

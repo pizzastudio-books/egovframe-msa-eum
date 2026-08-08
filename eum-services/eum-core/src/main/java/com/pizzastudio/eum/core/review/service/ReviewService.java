@@ -22,6 +22,7 @@ import com.pizzastudio.eum.core.review.domain.Review;
 import com.pizzastudio.eum.core.review.domain.ReviewRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 심사.
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
  * <p>선정하면 신청 상태만 바꾸고, 반려하면 차감했던 예산을 되돌린다. 지급은 심사와 같은
  * 트랜잭션에서 일어나지 않고 야간 배치가 따로 처리한다.</p>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -49,6 +51,10 @@ public class ReviewService {
         if (!application.isRequest()) {
             throw new BusinessMessageException("접수 상태인 신청만 심사할 수 있습니다.");
         }
+
+        log.info("심사 신청번호={} 결과={} 심사자={}", applicationId, requestDto.getResultId(), currentMemberId());
+
+        log.info("심사 신청번호={} 결과={}", applicationId, requestDto.getResultId());
 
         String result = requestDto.getResultId();
         if (RESULT_APPROVE.equals(result)) {
