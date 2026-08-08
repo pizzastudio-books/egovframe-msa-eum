@@ -20,6 +20,16 @@ spec:
     - host: {{ .Values.ingress.host }}
       http:
         paths:
+          {{- if .Values.observability.enabled }}
+          # 대시보드(19.2). 관측 매니페스트를 따로 올린 경우에만 길을 연다.
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  name: http
+          {{- end }}
           - path: /api
             pathType: Prefix
             backend:

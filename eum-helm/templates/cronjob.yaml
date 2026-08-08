@@ -47,6 +47,13 @@ spec:
                   value: "false"
                 - name: EUM_BATCH_PAYMENT_ENABLED
                   value: "true"
+                # 조회 API 를 열면서 JwtVerifier 가 생겼다(17.2). 이 값이 없으면 배치가
+                # 기동에 실패한다 — 매니페스트에는 넣고 차트에는 안 넣어 실제로 겪었다(20.1).
+                - name: TOKEN_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Release.Name }}-secret
+                      key: TOKEN_SECRET
                 {{- include "eum.dbEnv" $ctx | nindent 16 }}
                 {{- include "eum.brokerEnv" $ctx | nindent 16 }}
               resources:

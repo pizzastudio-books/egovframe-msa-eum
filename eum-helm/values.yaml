@@ -25,6 +25,11 @@ secrets:
   PAYMENT_MYSQL_USER: "pay_app"
   PAYMENT_MYSQL_PASSWORD: "pay_app"
 
+# 관측(19장). 매니페스트는 eum-observability/ 에 따로 있다 — 애플리케이션과 수명이 다르다.
+# 여기서는 인그레스에 대시보드 길을 열지만 정한다.
+observability:
+  enabled: true
+
 ingress:
   enabled: true
   className: nginx
@@ -46,6 +51,7 @@ services:
     image:
       repository: eum/eum-core
     port: 8080
+    metrics: true
     replicas: 3
     database: eum
     messaging: true
@@ -78,6 +84,7 @@ services:
     image:
       repository: eum/eum-notification
     port: 8080
+    metrics: true
     replicas: 2
     database: eum_noti
     messaging: true
@@ -99,6 +106,7 @@ services:
     image:
       repository: eum/eum-payment
     port: 8080
+    metrics: true
     replicas: 2
     database: eum_pay
     messaging: true
@@ -128,6 +136,7 @@ services:
     image:
       repository: eum/eum-gateway
     port: 8000
+    metrics: true
     replicas: 2
     messaging: false
     resources:
@@ -150,6 +159,8 @@ services:
     image:
       repository: eum/eum-web
     port: 8080
+    # nginx 라 내보낼 지표가 없다. 표시를 달면 수집기가 매번 실패한다(19.2).
+    metrics: false
     replicas: 2
     messaging: false
     # 정적 파일만 내보낸다. 상태도 없고 스프링도 아니라 검사 경로가 다르다

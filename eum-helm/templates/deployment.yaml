@@ -35,6 +35,13 @@ spec:
         # 도는 파드는 옛 값을 그대로 들고 있다(20.1)
         checksum/config: {{ toYaml $svc.config | sha256sum }}
         checksum/common: {{ toYaml $.Values.common | sha256sum }}
+        {{- if $svc.metrics }}
+        # 이 표시가 있는 파드만 수집기가 긁는다(19.2). 서비스가 늘어도 수집기 설정은
+        # 안 바뀐다. 화면(nginx)처럼 내보낼 지표가 없는 것에는 달지 않는다.
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "{{ $svc.port }}"
+        {{- end }}
     spec:
       {{- if ne $name "web" }}
       securityContext:
@@ -117,6 +124,6 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "eum.fullname" $ctx }}
+            claimName: {{ include "eum.fullname" $ctx }}-attachments
       {{- end }}
 {{- end }}

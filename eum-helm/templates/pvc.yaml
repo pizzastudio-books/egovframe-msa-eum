@@ -6,7 +6,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "eum.fullname" $ctx }}
+  name: {{ include "eum.fullname" $ctx }}-attachments
   labels:
     {{- include "eum.labels" $ctx | nindent 4 }}
 spec:

@@ -28,8 +28,10 @@ python3 - "$WORK/manifests.yaml" "$WORK/helm.yaml" <<'PY'
 import sys, yaml
 
 # 브로커와 데이터베이스는 차트 밖이다. 애플리케이션 워크로드만 견준다.
+# 데이터베이스·브로커·초기화 작업은 차트 밖이다. 애플리케이션과 수명이 다르다 —
+# 초기화는 한 번 돌면 되고(15.2), 데이터베이스는 애플리케이션보다 오래 산다(12.2).
 INFRA = {"eum-mysql", "eum-rabbitmq", "eum-mysql-data",
-         "eum-rabbitmq-data", "eum-mysql-init"}
+         "eum-rabbitmq-data", "eum-mysql-init", "eum-db-init"}
 SKIP_KINDS = {"Namespace", "StatefulSet"}
 
 
@@ -41,9 +43,6 @@ def load(path, drop_infra):
         name = doc["metadata"]["name"]
         if drop_infra and name in INFRA:
             continue
-        # 첨부 볼륨 이름만 양쪽 관례가 다르다. 견주기 위해 맞춘다.
-        if name == "eum-core-attachments":
-            name = "eum-core"
         out[(doc["kind"], name)] = doc
     return out
 
@@ -75,6 +74,26 @@ for key in sorted(set(hand) & set(helm)):
         eb = {e["name"] for e in cb.get("env", []) or []}
         if ea != eb:
             problems.append(f"{kind}/{name} .env: {sorted(ea)} vs {sorted(eb)}")
+
+        # 수집 표시가 빠지면 그 서비스만 지표가 안 잡힌다. 화면에는 아무 표시도 안 난다(19.2).
+        aa = (a["spec"]["template"]["metadata"].get("annotations") or {})
+        ab = (b["spec"]["template"]["metadata"].get("annotations") or {})
+        for field in ("prometheus.io/scrape", "prometheus.io/path", "prometheus.io/port"):
+            if aa.get(field) != ab.get(field):
+                problems.append(f"{kind}/{name} .{field}: {aa.get(field)} vs {ab.get(field)}")
+
+    # 크론잡을 안 보다가 실제로 놓쳤다. 배포에는 TOKEN_SECRET 을 넣고 크론잡에는 안 넣어,
+    # 헬름으로 띄우면 야간 배치가 기동에 실패하는 상태가 한동안 남아 있었다(20.1).
+    if kind == "CronJob":
+        sa = a["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]
+        sb = b["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]
+        ea = {e["name"] for e in sa.get("env", []) or []}
+        eb = {e["name"] for e in sb.get("env", []) or []}
+        if ea != eb:
+            problems.append(f"{kind}/{name} .env: {sorted(ea)} vs {sorted(eb)}")
+        for field in ("schedule", "concurrencyPolicy", "timeZone"):
+            if a["spec"].get(field) != b["spec"].get(field):
+                problems.append(f"{kind}/{name} .{field}: {a['spec'].get(field)} vs {b['spec'].get(field)}")
 
     if kind == "HorizontalPodAutoscaler":
         for field in ("minReplicas", "maxReplicas"):
