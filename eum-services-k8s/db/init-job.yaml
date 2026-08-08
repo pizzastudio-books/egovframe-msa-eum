@@ -44,17 +44,29 @@ spec:
               # 애플리케이션 초기화로는 안 되고, MySQL 8.4 는 ADD COLUMN IF NOT EXISTS 도
               # 지원하지 않는다. 그래서 있는지 보고 없을 때만 더한다(11.4).
               echo "▶ 칼럼 변경을 적용합니다"
-              for pair in "eum outbox_event request_id varchar(64)" "eum_pay outbox_event request_id varchar(64)"; do
-                set -- $pair
-                HAS_COL=$($M -e "select count(*) from information_schema.columns
-                                 where table_schema='"'"'$1'"'"' and table_name='"'"'$2'"'"' and column_name='"'"'$3'"'"';")
-                if [ "$HAS_COL" = "0" ]; then
-                  echo "  $1.$2 에 $3 을 더합니다"
-                  $M -e "alter table $1.$2 add column $3 $4 null;"
-                else
-                  echo "  $1.$2.$3 이미 있음"
-                fi
-              done
+              # 표는 있으면 그대로 두지만 **칼럼을 더하는 것은 별개 일이다.**
+              # 셸에서 따옴표를 겹치면 조회가 조용히 빈 값을 낸다 — 실제로 겪었다.
+              # "없다"고 판정하고 ALTER 를 걸어 Duplicate column 으로 죽었다. 그래서
+              # SQL 파일로 넘긴다.
+              cat > /tmp/addcol.sql <<'SQL'
+              set @c := (select count(*) from information_schema.columns
+                         where table_schema='eum' and table_name='outbox_event'
+                           and column_name='request_id');
+              set @s := if(@c=0,
+                'alter table eum.outbox_event add column request_id varchar(64) null',
+                'select "eum.outbox_event.request_id 이미 있음"');
+              prepare st from @s; execute st; deallocate prepare st;
+
+              set @c2 := (select count(*) from information_schema.columns
+                          where table_schema='eum_pay' and table_name='outbox_event'
+                            and column_name='request_id');
+              set @s2 := if(@c2=0,
+                'alter table eum_pay.outbox_event add column request_id varchar(64) null',
+                'select "eum_pay.outbox_event.request_id 이미 있음"');
+              prepare st2 from @s2; execute st2; deallocate prepare st2;
+              SQL
+              sed 's/^              //' /tmp/addcol.sql | \
+                mysql -h eum-mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4
 
               echo "▶ 적용 결과"
               mysql -h eum-mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N \
