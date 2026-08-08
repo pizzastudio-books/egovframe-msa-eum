@@ -1,0 +1,142 @@
+# 지표 수집기.
+#
+# **노트북에서 돌아가야 한다.** 서비스 넷·데이터베이스·브로커가 이미 3GB 를 쓰는 환경이라
+# (15장) 기본 설정으로 올리면 넘친다. 그래서 보존 기간을 짧게 잡고 상한을 걸었다.
+# 운영에서는 기관이 이미 쓰는 수집기에 붙이는 것이 보통이다 — 이 매니페스트는 실습용이다.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: eum
+---
+# 파드를 찾아다니며 지표를 긁으려면 목록을 읽을 수 있어야 한다.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus
+  namespace: eum
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus
+  namespace: eum
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: eum
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: eum
+data:
+  prometheus.yml: |
+    global:
+      # 15초면 실습에 충분하다. 짧게 잡을수록 메모리를 더 쓴다.
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      # 파드에 붙은 표시를 보고 긁을 대상을 정한다. 서비스가 늘어도 이 파일은 안 바뀐다.
+      - job_name: eum
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [eum]
+        relabel_configs:
+          # prometheus.io/scrape: "true" 인 파드만 긁는다
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          # 어느 서비스·어느 파드인지 라벨로 남긴다. 이것이 없으면 지표를 갈라 볼 수 없다.
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: replace
+            target_label: service
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: eum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.1.0
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            # 실습이라 두 시간만 둔다. 기본값은 15일이고 그만큼 디스크와 메모리를 쓴다.
+            - --storage.tsdb.retention.time=2h
+            - --storage.tsdb.path=/prometheus
+            - --web.enable-lifecycle
+          ports:
+            - containerPort: 9090
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "192Mi"
+            limits:
+              cpu: "500m"
+              memory: "384Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        # 실습이라 파드와 함께 사라진다. 운영에서는 볼륨을 붙인다(10.3).
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: eum
+spec:
+  selector:
+    app.kubernetes.io/name: prometheus
+  ports:
+    - port: 9090
+      targetPort: http
+      name: http

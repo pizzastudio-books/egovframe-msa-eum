@@ -39,6 +39,12 @@ management:
     web:
       exposure:
         include: health, info, prometheus
+  metrics:
+    distribution:
+      # 응답 시간 분위수를 보려면 히스토그램을 켜야 한다. 기본은 꺼져 있어
+      # histogram_quantile 이 빈 결과를 낸다 — 대시보드만 만들고 값이 안 나온다(19.2).
+      percentiles-histogram:
+        http.server.requests: true
 
 logging:
   level:

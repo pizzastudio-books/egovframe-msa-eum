@@ -23,6 +23,12 @@ spec:
       maxUnavailable: 0
   template:
     metadata:
+      annotations:
+        # 이 표시가 있는 파드만 수집기가 긁는다(19.2). 서비스가 늘어도
+        # 수집기 설정은 안 바뀐다.
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8000"
       labels:
         app.kubernetes.io/name: eum-gateway
         app.kubernetes.io/part-of: eum

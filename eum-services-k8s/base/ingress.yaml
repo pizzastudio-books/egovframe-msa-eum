@@ -16,6 +16,15 @@ spec:
     - host: eum.local
       http:
         paths:
+          # 대시보드(19.2). 실습에서 화면으로 보려고 같은 도메인 아래 둔다.
+          # 운영에서는 기관망 안에서만 닿게 하고 인증을 붙인다(9.3).
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  name: http
           - path: /api
             pathType: Prefix
             backend:

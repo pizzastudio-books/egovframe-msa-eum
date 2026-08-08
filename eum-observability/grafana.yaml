@@ -1,0 +1,171 @@
+# 대시보드.
+#
+# 실습이라 로그인을 끄고 익명으로 본다. 대시보드도 미리 넣어 둔다 — 독자가 화면을 만들
+# 필요는 없다. 볼 것을 정하는 일이 화면을 그리는 일보다 중요하다(19.2).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource
+  namespace: eum
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: eum
+data:
+  provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: eum
+        folder: 이음
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-eum
+  namespace: eum
+data:
+  eum.json: |
+    {
+      "title": "이음 — 전환 기준선",
+      "uid": "eum-baseline",
+      "timezone": "browser",
+      "refresh": "10s",
+      "time": { "from": "now-30m", "to": "now" },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "요청 수 (초당) — 상태별",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [{
+            "expr": "sum by (status) (rate(http_server_requests_seconds_count{uri!~\"/actuator.*\"}[1m]))",
+            "legendFormat": "{{status}}"
+          }]
+        },
+        {
+          "type": "timeseries",
+          "title": "응답 시간 95분위 (초) — 서비스별",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [{
+            "expr": "histogram_quantile(0.95, sum by (service, le) (rate(http_server_requests_seconds_bucket{uri!~\"/actuator.*\"}[5m])))",
+            "legendFormat": "{{service}}"
+          }]
+        },
+        {
+          "type": "timeseries",
+          "title": "데이터베이스 접속 — 쓰는 중 (10.4의 셈을 값으로)",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [{
+            "expr": "sum by (service) (hikaricp_connections_active)",
+            "legendFormat": "{{service}}"
+          }]
+        },
+        {
+          "type": "timeseries",
+          "title": "힙 메모리 (11.2의 자원 상한 근거)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [{
+            "expr": "sum by (service) (jvm_memory_used_bytes{area=\"heap\"})",
+            "legendFormat": "{{service}}"
+          }]
+        },
+        {
+          "type": "stat",
+          "title": "떠 있는 서비스",
+          "gridPos": { "h": 5, "w": 24, "x": 0, "y": 16 },
+          "targets": [{ "expr": "sum(up)", "legendFormat": "up" }]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: eum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.5.1
+          env:
+            # 실습이라 로그인을 끈다. 운영에서는 기관 인증에 붙인다.
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Admin"
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "true"
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_SERVER_ROOT_URL
+              value: "/grafana"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+          ports:
+            - containerPort: 3000
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: datasource
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+          readinessProbe:
+            httpGet:
+              path: /grafana/api/health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+      volumes:
+        - name: datasource
+          configMap:
+            name: grafana-datasource
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: grafana-dashboard-eum
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: eum
+spec:
+  selector:
+    app.kubernetes.io/name: grafana
+  ports:
+    - port: 3000
+      targetPort: http
+      name: http
