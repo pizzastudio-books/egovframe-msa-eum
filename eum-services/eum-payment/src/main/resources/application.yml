@@ -68,3 +68,7 @@ management:
 logging:
   level:
     com.pizzastudio.eum: debug
+
+# 게이트웨이와 같은 열쇠로 서명을 확인한다(16.3).
+token:
+  secret: ${TOKEN_SECRET:eum_local_token_secret}

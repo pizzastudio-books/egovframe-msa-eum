@@ -10,14 +10,21 @@ dependencies {
     implementation project(':eum-contract')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    // 조회 API 를 열면서 인증이 필요해졌다. 게이트웨이가 이미 검증했더라도 다시 한다(16.3).
+    implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     implementation 'org.springframework.cloud:spring-cloud-stream'
     implementation 'org.springframework.cloud:spring-cloud-stream-binder-rabbit'
 
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
     implementation 'com.mysql:mysql-connector-j:8.4.0'
     runtimeOnly 'com.h2database:h2'
 
     testImplementation 'org.springframework.cloud:spring-cloud-stream-test-binder'
+    testImplementation 'org.springframework.security:spring-security-test'
 }

@@ -68,3 +68,7 @@ eum:
 logging:
   level:
     root: info
+
+# 게이트웨이와 같은 열쇠로 서명을 확인한다(16.3).
+token:
+  secret: ${TOKEN_SECRET}
