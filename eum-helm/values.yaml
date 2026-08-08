@@ -144,6 +144,7 @@ services:
       # 앱이 읽는 이름과 정확히 같아야 한다(16.2)
       EUM_CORE_URI: "http://eum-core"
       EUM_PAYMENT_URI: "http://eum-payment"
+      EUM_LEGACY_URI: "http://mock-legacy"
 
   web:
     image:

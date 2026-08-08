@@ -9,3 +9,5 @@ data:
   # 뒤쪽 서비스는 클러스터 DNS 이름으로 부른다. 별도 레지스트리를 두지 않는다(14.2)
   EUM_CORE_URI: "http://eum-core"
   EUM_PAYMENT_URI: "http://eum-payment"
+  # 아직 옮기지 않은 것이 있는 곳. 실습에서는 타 기관 연계를 흉내 내는 서버다(16.4).
+  EUM_LEGACY_URI: "http://mock-legacy"

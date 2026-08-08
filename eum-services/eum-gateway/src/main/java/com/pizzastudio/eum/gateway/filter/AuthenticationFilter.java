@@ -37,6 +37,18 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     public static final String USER_HEADER = "X-Eum-User";
     public static final String ROLES_HEADER = "X-Eum-Roles";
 
+    /**
+     * 감사 로그가 읽는 주체.
+     *
+     * <p>감사 필터는 시큐리티 사슬 <b>바깥</b>에 있다(16.4). 거부당한 요청도 남기려면
+     * 그래야 하는데, 사슬을 벗어나면 {@code SecurityContextHolder} 는 이미 비어 있다.
+     * 그래서 요청 속성에 따로 심어 둔다.</p>
+     */
+    public static final String PRINCIPAL_ATTRIBUTE = "eum.principal";
+
+    /** 토큰을 거부한 사유. 만료인지 서명 불일치인지 남긴다. */
+    public static final String REJECT_REASON_ATTRIBUTE = "eum.rejectReason";
+
     private final JwtVerifier jwtVerifier;
 
     @Override
@@ -59,11 +71,15 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
             SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(claims.getSubject(), null, roles));
+            request.setAttribute(PRINCIPAL_ATTRIBUTE, claims.getSubject());
 
             chain.doFilter(new PrincipalForwardingRequest(request, claims.getSubject(), authorities),
                 response);
         } catch (JwtException e) {
             SecurityContextHolder.clearContext();
+            // 사유를 남긴다. 만료인지 서명 불일치인지 모르면 장애 대응이 안 된다.
+            request.setAttribute(PRINCIPAL_ATTRIBUTE, "-");
+            request.setAttribute(REJECT_REASON_ATTRIBUTE, e.getClass().getSimpleName());
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
         }
     }
@@ -89,6 +105,39 @@ public class AuthenticationFilter extends OncePerRequestFilter {
                 return roles;
             }
             return super.getHeader(name);
+        }
+
+        /**
+         * {@code getHeader} 만 재정의하면 뒤로 안 넘어간다.
+         *
+         * <p>프록시는 넘길 헤더를 모을 때 이름 목록부터 훑는다. 목록에 없는 이름은
+         * 값을 물어보지도 않는다. 실제로 겪었다 — 헤더를 심는 코드가 있는데 받는 쪽에는
+         * 오지 않았다(16.3).</p>
+         */
+        @Override
+        public java.util.Enumeration<String> getHeaderNames() {
+            java.util.List<String> names = new java.util.ArrayList<>();
+            java.util.Enumeration<String> original = super.getHeaderNames();
+            while (original.hasMoreElements()) {
+                String name = original.nextElement();
+                if (!USER_HEADER.equalsIgnoreCase(name) && !ROLES_HEADER.equalsIgnoreCase(name)) {
+                    names.add(name);
+                }
+            }
+            names.add(USER_HEADER);
+            names.add(ROLES_HEADER);
+            return java.util.Collections.enumeration(names);
+        }
+
+        @Override
+        public java.util.Enumeration<String> getHeaders(String name) {
+            if (USER_HEADER.equalsIgnoreCase(name)) {
+                return java.util.Collections.enumeration(java.util.List.of(user));
+            }
+            if (ROLES_HEADER.equalsIgnoreCase(name)) {
+                return java.util.Collections.enumeration(java.util.List.of(roles));
+            }
+            return super.getHeaders(name);
         }
     }
 }

@@ -13,6 +13,12 @@ spring:
           # 지급 요청이 본체로 간다. 본체에는 그 경로가 없으니 404 가 나는데,
           # 게이트웨이 설정을 의심하기까지 한참 걸린다.
           routes:
+            # 아직 옮기지 않은 것은 옛 곳으로 보낸다(16.4). 부르는 쪽은 주소가 하나다.
+            # 옮길 때마다 이 목록만 고치면 되고, 화면과 외부 연계는 그대로 둔다.
+            - id: legacy
+              uri: ${EUM_LEGACY_URI:http://localhost:9000}
+              predicates:
+                - Path=/api/legacy/**
             - id: eum-payment
               uri: ${EUM_PAYMENT_URI:http://localhost:8082}
               predicates:

@@ -8,6 +8,7 @@
 
     GET  /api/legacy/business/{사업자번호}
     GET  /api/legacy/arrears/{사업자번호}
+    GET  /api/legacy/echo            받은 헤더를 그대로 돌려준다(16.3 확인용)
     GET  /healthz
 
     POST /admin/behavior   {"delayMillis": 3000, "failRate": 0.5, "status": 500}
@@ -65,6 +66,12 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/admin/behavior":
             self._send(200, behavior)
+            return
+
+        # 게이트웨이가 뒤로 무엇을 넘기는지 그대로 되돌려 준다(16.3).
+        # 주체 헤더가 실제로 도착하는지는 받는 쪽에서 봐야 안다.
+        if path == "/api/legacy/echo":
+            self._send(200, {"headers": {k: v for k, v in self.headers.items()}})
             return
 
         if path.startswith("/api/legacy/business/"):
