@@ -77,16 +77,6 @@ public class ApplicationRepositoryImpl implements ApplicationRepositoryCustom {
         return count == null ? 0L : count;
     }
 
-    @Override
-    public List<Application> findApprovedForPayment(int limit) {
-        return queryFactory
-            .selectFrom(application)
-            .where(application.statusId.eq(ApplicationStatus.APPROVE.getKey()))
-            .orderBy(application.createDate.asc())
-            .limit(limit)
-            .fetch();
-    }
-
     /**
      * 신청 저장. 식별자를 앱이 만들므로 save() 대신 persist 를 쓴다.
      * save() 는 식별자가 있으면 merge 로 동작해 select 가 한 번 더 나간다.

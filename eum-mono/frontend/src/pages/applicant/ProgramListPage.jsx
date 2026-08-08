@@ -8,7 +8,7 @@ import { formatMoney, formatDate } from '@/lib/format';
 // 지원사업 안내. 사업유형 필터 + 카드 목록. 카드에서 신청 화면으로 이동한다.
 export default function ProgramListPage() {
   const [type, setType] = useState('');
-  const { data: types } = useCommonCodes('PROGRAM_TYPE');
+  const { data: types } = useCommonCodes('support-category');
   const { data: programs, isLoading } = useQuery({
     queryKey: ['programs', type],
     queryFn: () => fetchPrograms(type || undefined),

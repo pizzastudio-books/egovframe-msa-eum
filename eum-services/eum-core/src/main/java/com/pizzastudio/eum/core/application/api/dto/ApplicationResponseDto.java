@@ -51,7 +51,24 @@ public class ApplicationResponseDto {
         this.statusLabel = statusLabel;
         this.applicantContactNo = entity.getApplicantContactNo();
         this.applicantEmailAddr = entity.getApplicantEmailAddr();
-        this.accountNo = entity.getAccountNo();
+        this.accountNo = maskAccount(entity.getAccountNo());
         this.createDate = entity.getCreateDate();
+    }
+
+    /**
+     * 계좌는 뒷자리만 내보낸다.
+     *
+     * <p>지급을 떼어내면서 "계좌 원본은 지급 서비스에만 있다"고 적었는데, 본체 응답이
+     * 원본을 그대로 내보내고 있었다. 클러스터에서 확인했다 — 신청 조회 응답에
+     * {@code "accountNo":"110-000-123456"} 이 그대로 나왔다(17.2).</p>
+     *
+     * <p>본체가 계좌를 아예 안 갖는 것이 옳지만, 접수 시점에는 받아야 하므로 지금은
+     * 내보내는 것만 막는다. 데이터 자체를 옮기는 것은 별도 과제다.</p>
+     */
+    private static String maskAccount(String accountNo) {
+        if (accountNo == null || accountNo.length() <= 4) {
+            return accountNo;
+        }
+        return "*".repeat(accountNo.length() - 4) + accountNo.substring(accountNo.length() - 4);
     }
 }

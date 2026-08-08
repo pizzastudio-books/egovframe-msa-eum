@@ -139,6 +139,14 @@ if [ "$MODE" != "mono" ]; then
     kubectl apply -f "$CODE/eum-services-k8s/db/init-job.yaml"
     kubectl wait --for=condition=complete job/eum-db-init -n eum --timeout=300s
     kubectl logs job/eum-db-init -n eum 2>/dev/null | grep -E "^  계정" || true
+
+    # 3부(mono)로 먼저 띄웠다면 그때 쌓인 데이터가 옛 데이터베이스에 남는다. 옮기지 않으면
+    # 담당자 화면에서 지급 내역이 사라진 것처럼 보인다(17.3). 옛 표가 없으면 그냥 끝난다.
+    log "3부 데이터를 옮깁니다"
+    kubectl delete job eum-db-migrate -n eum --ignore-not-found >/dev/null
+    kubectl apply -f "$CODE/eum-services-k8s/db/migrate-job.yaml"
+    kubectl wait --for=condition=complete job/eum-db-migrate -n eum --timeout=300s
+    kubectl logs job/eum-db-migrate -n eum 2>/dev/null | grep -E "^▶|^  " | grep -v Warning || true
 fi
 
 log "애플리케이션을 기다립니다"

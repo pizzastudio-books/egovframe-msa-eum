@@ -15,8 +15,8 @@ export default function ReviewListPage() {
   const [condition, setCondition] = useState({
     status: '', programType: '', keyword: '', page: 0, size: 20, sort: 'createdAt', direction: 'desc',
   });
-  const { data: statusCodes } = useCommonCodes('APP_STATUS');
-  const { data: typeCodes } = useCommonCodes('PROGRAM_TYPE');
+  const { data: statusCodes } = useCommonCodes('application-status');
+  const { data: typeCodes } = useCommonCodes('support-category');
   const { data, isLoading } = useApplicationSearch(condition);
 
   const rows = data?.data ?? [];

@@ -16,8 +16,6 @@ public interface ApplicationRepositoryCustom {
 
     long searchCountForApplicant(String applicantId, String statusId);
 
-    /** 지급 대상 — 선정됐고 아직 지급되지 않은 건 */
-    List<Application> findApprovedForPayment(int limit);
 
     Application insert(Application application);
 }

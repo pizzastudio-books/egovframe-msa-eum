@@ -32,7 +32,7 @@ public class PaymentQueryService {
         log.info("지급 조회 열람자={} applicationId={} statusId={}", viewer(), applicationId, statusId);
 
         if (applicationId != null && !applicationId.isBlank()) {
-            return paymentRepository.findByApplicationId(applicationId).stream()
+            return paymentRepository.findByApplicationIdOrderByPaymentId(applicationId).stream()
                 .map(PaymentResponseDto::new).toList();
         }
         if (statusId != null && !statusId.isBlank()) {

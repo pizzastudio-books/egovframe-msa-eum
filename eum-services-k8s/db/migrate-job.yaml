@@ -40,6 +40,14 @@ spec:
               set -e
               M="mysql -h eum-mysql -uroot -p$MYSQL_ROOT_PASSWORD -N"
 
+              # 4부부터 시작한 클러스터에는 옛 표가 없다. 그때는 옮길 것이 없다.
+              HAS=$($M -e "select count(*) from information_schema.tables
+                           where table_schema='eum' and table_name in ('payment','notification');")
+              if [ "$HAS" != "2" ]; then
+                echo "▶ 옛 표가 없습니다. 옮길 것이 없습니다."
+                exit 0
+              fi
+
               echo "▶ 옮기기 전"
               $M -e "select concat('  eum.payment           ', count(*)) from eum.payment;
                      select concat('  eum_pay.payment       ', count(*)) from eum_pay.payment;
@@ -66,7 +74,12 @@ spec:
                 left join eum.application a on a.application_id = p.application_id
                 where not exists (
                   select 1 from eum_pay.payment q
-                  where q.event_id = concat('migrated-', p.payment_id));"
+                  where q.event_id = concat('migrated-', p.payment_id))
+                  -- 이벤트로 이미 만들어진 지급이 있으면 넣지 않는다. 신청 한 건에
+                  -- 지급이 둘이 되면 조회가 두 건을 받는다(17.2).
+                  and not exists (
+                    select 1 from eum_pay.payment r
+                    where r.application_id = p.application_id);"
 
               echo "▶ 알림을 옮깁니다"
               $M -e "
@@ -90,7 +103,12 @@ spec:
                 select count(*) from eum.payment p
                 where not exists (
                   select 1 from eum_pay.payment q
-                  where q.event_id = concat('migrated-', p.payment_id));")
+                  where q.event_id = concat('migrated-', p.payment_id))
+                  -- 이벤트로 이미 만들어진 지급이 있으면 넣지 않는다. 신청 한 건에
+                  -- 지급이 둘이 되면 조회가 두 건을 받는다(17.2).
+                  and not exists (
+                    select 1 from eum_pay.payment r
+                    where r.application_id = p.application_id);")
               echo "  옮겨지지 않은 지급: $MISSING 건"
               if [ "$MISSING" != "0" ]; then
                 echo "  ✗ 이관이 끝나지 않았습니다"
@@ -98,9 +116,14 @@ spec:
               fi
 
               echo "▶ 금액 합계가 맞는가"
-              $M -e "
-                select concat('  옛 표 합계 ', coalesce(sum(amount),0)) from eum.payment;
-                select concat('  새 표 합계 ', coalesce(sum(amount),0)) from eum_pay.payment
-                  where event_id like 'migrated-%';"
+              OLD=$($M -e "select coalesce(sum(amount),0) from eum.payment;")
+              NEW=$($M -e "select coalesce(sum(amount),0) from eum_pay.payment
+                           where event_id like 'migrated-%';")
+              echo "  옛 표 합계 $OLD"
+              echo "  새 표 합계 $NEW"
+              if [ "$OLD" != "$NEW" ]; then
+                echo "  ✗ 합계가 다릅니다. 옮기다 만 것이 있습니다."
+                exit 1
+              fi
 
               echo "▶ 끝났습니다. 옛 표는 지우지 않습니다 — 되돌릴 수 있어야 합니다(17.3)."

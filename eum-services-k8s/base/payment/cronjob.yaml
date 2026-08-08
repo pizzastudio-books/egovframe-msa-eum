@@ -58,6 +58,13 @@ spec:
                     secretKeyRef:
                       name: eum-secret
                       key: RABBITMQ_PASSWORD
+                # 조회 API 를 열면서 JwtVerifier 가 생겼다. application-k8s.yml 의
+                # token.secret 에는 기본값이 없어 이 값이 없으면 배치가 기동에 실패한다.
+                - name: TOKEN_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: eum-secret
+                      key: TOKEN_SECRET
               resources:
                 requests:
                   cpu: "200m"
