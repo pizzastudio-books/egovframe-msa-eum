@@ -23,7 +23,7 @@ metadata:
   name: eum-db-migrate
   namespace: eum
 spec:
-  backoffLimit: 3
+  backoffLimit: 0
   template:
     spec:
       restartPolicy: OnFailure
@@ -98,14 +98,22 @@ spec:
               $M -e "select concat('  eum_pay.payment       ', count(*)) from eum_pay.payment;
                      select concat('  eum_noti.notification ', count(*)) from eum_noti.notification;"
 
-              echo "▶ 정합성 확인 — 옛 건이 전부 새 표에 있는가"
+              # 일부러 건너뛴 것과 옮기지 못한 것을 갈라 세야 한다. 같은 신청에 이벤트로
+              # 만들어진 지급이 이미 있으면 옮기지 않는데, 그것까지 "실패"로 세면 늘 실패한다.
+              echo "▶ 일부러 건너뛴 것"
+              SKIPPED=$($M -e "
+                select count(*) from eum.payment p
+                where exists (select 1 from eum_pay.payment r
+                              where r.application_id = p.application_id
+                                and r.event_id <> concat('migrated-', p.payment_id));")
+              echo "  이미 새 표에 지급이 있어 건너뜀: $SKIPPED 건"
+
+              echo "▶ 정합성 확인 — 건너뛴 것 말고 전부 옮겨졌는가"
               MISSING=$($M -e "
                 select count(*) from eum.payment p
                 where not exists (
                   select 1 from eum_pay.payment q
                   where q.event_id = concat('migrated-', p.payment_id))
-                  -- 이벤트로 이미 만들어진 지급이 있으면 넣지 않는다. 신청 한 건에
-                  -- 지급이 둘이 되면 조회가 두 건을 받는다(17.2).
                   and not exists (
                     select 1 from eum_pay.payment r
                     where r.application_id = p.application_id);")
@@ -115,12 +123,17 @@ spec:
                 exit 1
               fi
 
+              # 금액도 대조한다. 건수만 맞고 금액이 틀린 이관을 실제로 겪는다.
               echo "▶ 금액 합계가 맞는가"
-              OLD=$($M -e "select coalesce(sum(amount),0) from eum.payment;")
+              OLD=$($M -e "
+                select coalesce(sum(p.amount),0) from eum.payment p
+                where not exists (select 1 from eum_pay.payment r
+                                  where r.application_id = p.application_id
+                                    and r.event_id <> concat('migrated-', p.payment_id));")
               NEW=$($M -e "select coalesce(sum(amount),0) from eum_pay.payment
                            where event_id like 'migrated-%';")
-              echo "  옛 표 합계 $OLD"
-              echo "  새 표 합계 $NEW"
+              echo "  옮기기로 한 것의 합계 $OLD"
+              echo "  실제로 옮긴 것의 합계 $NEW"
               if [ "$OLD" != "$NEW" ]; then
                 echo "  ✗ 합계가 다릅니다. 옮기다 만 것이 있습니다."
                 exit 1
