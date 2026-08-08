@@ -10,9 +10,9 @@ import com.pizzastudio.eum.application.domain.ApplicationRepository;
 import com.pizzastudio.eum.application.domain.ApplicationStatus;
 import com.pizzastudio.eum.common.exception.EntityNotFoundException;
 import com.pizzastudio.eum.external.BankTransferClient;
-import com.pizzastudio.eum.notification.service.NotificationService;
 import com.pizzastudio.eum.payment.api.dto.PaymentResponseDto;
 import com.pizzastudio.eum.payment.domain.Payment;
+import com.pizzastudio.eum.payment.domain.PaymentEvents;
 import com.pizzastudio.eum.payment.domain.PaymentRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final ApplicationRepository applicationRepository;
     private final BankTransferClient bankTransferClient;
-    private final NotificationService notificationService;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     /**
      * 선정된 신청을 지급 지시로 만든다. 이미 만든 건은 건너뛴다.
@@ -84,9 +84,8 @@ public class PaymentService {
         if (success) {
             payment.markDone("이체 완료");
             application.updateStatus(ApplicationStatus.PAID.getKey());
-            notificationService.notify(application.getApplicantId(), "sms",
-                "지원금이 지급되었습니다",
-                "신청번호 " + application.getApplicationId() + " 지급이 완료되었습니다.");
+            events.publishEvent(new PaymentEvents.Completed(payment.getPaymentId(),
+                application.getApplicationId(), application.getApplicantId(), payment.getAmount()));
             return true;
         }
 

@@ -52,6 +52,9 @@ class FailurePropagationTest {
     @Autowired
     private ApplicationRepository applicationRepository;
 
+    @Autowired
+    private com.pizzastudio.eum.notification.domain.NotificationRepository notificationRepository;
+
     /** 문자 사업자가 답하지 않는 상황을 만든다 */
     @MockitoBean
     private NotificationSender notificationSender;
@@ -73,8 +76,8 @@ class FailurePropagationTest {
     }
 
     @Test
-    @DisplayName("알림 발송이 실패하면 접수가 통째로 되돌아간다")
-    void notificationFailureRollsBackTheWholeApplication() {
+    @DisplayName("알림 발송이 실패해도 접수는 남는다 — 13.4 이벤트 전환 뒤")
+    void notificationFailureNoLongerRollsBackTheApplication() {
         Program before = programService.findEntity(programId);
         long budgetBefore = before.getRemainBudget();
         long countBefore = applicationRepository.count();
@@ -83,17 +86,30 @@ class FailurePropagationTest {
         doThrow(new IllegalStateException("문자 사업자 응답 없음"))
             .when(notificationSender).send(anyString(), anyString(), anyString(), anyString());
 
-        assertThatThrownBy(() -> applicationService.apply(request()))
-            .as("접수가 실패해야 한다 — 알림과 한 트랜잭션이기 때문이다")
-            .isInstanceOf(IllegalStateException.class);
+        // 13.4 이전에는 여기서 IllegalStateException 이 나고 접수가 통째로 되돌아갔다.
+        // 이제 알림은 커밋 뒤에 별도 트랜잭션으로 돈다. 알림이 터져도 접수는 그대로다.
+        applicationService.apply(request());
 
         assertThat(programService.findEntity(programId).getRemainBudget())
-            .as("예산 차감이 되돌아가야 한다")
-            .isEqualTo(budgetBefore);
+            .as("예산은 차감된 채로 남는다")
+            .isEqualTo(budgetBefore - 1_000_000L);
 
         assertThat(applicationRepository.count())
-            .as("신청서도 남지 않아야 한다")
-            .isEqualTo(countBefore);
+            .as("신청서가 남는다")
+            .isEqualTo(countBefore + 1);
+    }
+
+    @Test
+    @DisplayName("커밋 뒤에 알림이 실제로 나간다 — AFTER_COMMIT 확인")
+    void notificationIsSentAfterCommit() {
+        long before = notificationRepository.count();
+
+        applicationService.apply(request());
+
+        // 이 시험은 @Transactional 이 아니므로 실제로 커밋된다. 커밋돼야 리스너가 돈다.
+        assertThat(notificationRepository.count())
+            .as("커밋 뒤 알림이 한 건 남아야 한다")
+            .isEqualTo(before + 1);
     }
 
     @Test

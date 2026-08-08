@@ -18,6 +18,7 @@ import com.pizzastudio.eum.application.api.dto.ApplicationResponseDto;
 import com.pizzastudio.eum.application.api.dto.ApplicationSaveRequestDto;
 import com.pizzastudio.eum.application.api.dto.ApplicationUpdateRequestDto;
 import com.pizzastudio.eum.application.domain.Application;
+import com.pizzastudio.eum.application.domain.ApplicationEvents;
 import com.pizzastudio.eum.application.domain.ApplicationRepository;
 import com.pizzastudio.eum.code.service.CodeService;
 import com.pizzastudio.eum.common.dto.PageRequestDto;
@@ -26,7 +27,6 @@ import com.pizzastudio.eum.common.exception.EntityNotFoundException;
 import com.pizzastudio.eum.external.legacy.EligibilityChecker;
 import com.pizzastudio.eum.member.domain.Role;
 import com.pizzastudio.eum.member.service.MemberService;
-import com.pizzastudio.eum.notification.service.NotificationService;
 import com.pizzastudio.eum.program.domain.Program;
 import com.pizzastudio.eum.program.service.ProgramService;
 
@@ -44,9 +44,9 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class ApplicationService {
 
+    private final org.springframework.context.ApplicationEventPublisher events;
     private final ApplicationRepository applicationRepository;
     private final ProgramService programService;
-    private final NotificationService notificationService;
     private final MemberService memberService;
     private final CodeService codeService;
     private final EligibilityChecker eligibilityChecker;
@@ -71,9 +71,9 @@ public class ApplicationService {
         Application saved = applicationRepository.insert(saveRequestDto.toEntity());
         saved.setProgram(program);
 
-        notificationService.notify(saved.getApplicantId(), "email",
-            "지원금 신청이 접수되었습니다",
-            program.getProgramName() + " 신청이 접수되었습니다. 신청번호 " + saved.getApplicationId());
+        // 알림을 직접 부르지 않고 사실만 알린다(13.4).
+        events.publishEvent(new ApplicationEvents.Received(
+            saved.getApplicationId(), saved.getApplicantId(), program.getProgramName()));
 
         return ApplicationResponseDto.builder().entity(saved).statusLabel(statusLabelOf(saved)).build();
     }
@@ -170,9 +170,8 @@ public class ApplicationService {
         Program program = programService.findEntity(application.getProgramId());
         program.decreaseBudget(-application.getAmount());
 
-        notificationService.notify(application.getApplicantId(), "email",
-            "지원금 신청이 취소되었습니다",
-            "신청번호 " + application.getApplicationId() + " 이 취소되었습니다.");
+        events.publishEvent(new ApplicationEvents.Cancelled(
+            application.getApplicationId(), application.getApplicantId()));
     }
 
     /**

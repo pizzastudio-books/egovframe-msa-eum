@@ -27,9 +27,15 @@ import com.pizzastudio.eum.program.service.ProgramService;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
+// 이벤트로 바꾼 뒤(13.4) 알림은 커밋 뒤에 돈다. @Transactional 시험은 커밋하지 않으므로
+// 알림 표를 세면 0 이다. 대신 "사실을 알렸는가"를 확인한다.
+@org.springframework.test.context.event.RecordApplicationEvents
 class ApplicationServiceTest {
 
     private static final Long PROGRAM_ID = 1L;
+
+    @Autowired
+    private org.springframework.test.context.event.ApplicationEvents events;
 
     @Autowired
     private ApplicationService applicationService;
@@ -52,12 +58,11 @@ class ApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("접수하면 예산이 그만큼 줄고 알림이 남는다")
+    @DisplayName("접수하면 예산이 그만큼 줄고 접수 사실이 발행된다")
     @WithMockUser(username = "user1", roles = "USER")
     void 접수_성공() {
         Program before = programService.findEntity(PROGRAM_ID);
         long remainBefore = before.getRemainBudget();
-        long notificationsBefore = notificationRepository.count();
 
         ApplicationResponseDto saved = applicationService.apply(request(1_000_000L));
 
@@ -66,7 +71,10 @@ class ApplicationServiceTest {
         assertThat(saved.getApplicantId()).isEqualTo("user1");
         assertThat(programService.findEntity(PROGRAM_ID).getRemainBudget())
             .isEqualTo(remainBefore - 1_000_000L);
-        assertThat(notificationRepository.count()).isEqualTo(notificationsBefore + 1);
+        assertThat(events.stream(
+                com.pizzastudio.eum.application.domain.ApplicationEvents.Received.class))
+            .as("접수 사실을 한 번 알렸다. 알림 발송은 커밋 뒤에 별도 트랜잭션으로 돈다")
+            .hasSize(1);
     }
 
     @Test
