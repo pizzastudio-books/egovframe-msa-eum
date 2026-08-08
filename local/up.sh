@@ -119,6 +119,18 @@ kubectl rollout status statefulset/eum-mysql -n eum --timeout=300s
 kubectl get statefulset -n eum eum-rabbitmq >/dev/null 2>&1 \
     && kubectl rollout status statefulset/eum-rabbitmq -n eum --timeout=300s
 
+# MySQL 이미지의 초기화 스크립트는 데이터 디렉터리가 비어 있을 때만 돈다. 3부(mono)로
+# 먼저 띄웠다면 서비스별 계정이 없는 채로 남는다. 알림·지급이 'Access denied for user
+# noti_app' 으로 재시작을 되풀이한다. 실제로 겪었다.
+# 그래서 계정·스키마 적용을 별도 작업으로 매번 돌린다. SQL 이 IF NOT EXISTS 라 안전하다.
+if [ "$MODE" != "mono" ]; then
+    log "데이터베이스와 계정을 적용합니다"
+    kubectl delete job eum-db-init -n eum --ignore-not-found >/dev/null
+    kubectl apply -f "$CODE/eum-services-k8s/db/init-job.yaml"
+    kubectl wait --for=condition=complete job/eum-db-init -n eum --timeout=300s
+    kubectl logs job/eum-db-init -n eum 2>/dev/null | grep -E "^  계정" || true
+fi
+
 log "애플리케이션을 기다립니다"
 for w in $WORKLOADS; do
     kubectl rollout status "$w" -n eum --timeout=420s
