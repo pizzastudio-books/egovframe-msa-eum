@@ -38,7 +38,10 @@ spec:
             - -c
             - |
               set -e
-              M="mysql -h eum-mysql -uroot -p$MYSQL_ROOT_PASSWORD -N"
+              # **문자셋을 지정하지 않으면 한글이 깨진다.** 실제로 겪었다 — 건수와 금액은
+              # 맞는데 result_message 가 'ì\x9d´ì²´ ì™„ë£Œ' 로 들어갔다. mysql 클라이언트가
+              # latin1 로 붙기 때문이다(18.2). 건수·금액만 보는 확인은 이것을 못 잡는다.
+              M="mysql -h eum-mysql -uroot -p$MYSQL_ROOT_PASSWORD --default-character-set=utf8mb4 -N"
 
               # 4부부터 시작한 클러스터에는 옛 표가 없다. 그때는 옮길 것이 없다.
               HAS=$($M -e "select count(*) from information_schema.tables
@@ -136,6 +139,18 @@ spec:
               echo "  실제로 옮긴 것의 합계 $NEW"
               if [ "$OLD" != "$NEW" ]; then
                 echo "  ✗ 합계가 다릅니다. 옮기다 만 것이 있습니다."
+                exit 1
+              fi
+
+              # 건수와 금액이 맞아도 글자가 깨질 수 있다. 옮긴 값이 원본과 같은지 본다.
+              echo "▶ 글자가 그대로인가"
+              GARBLED=$($M -e "
+                select count(*) from eum.payment p
+                join eum_pay.payment q on q.event_id = concat('migrated-', p.payment_id)
+                where not (q.result_message <=> p.result_message);")
+              echo "  원본과 다른 글자: $GARBLED 건"
+              if [ "$GARBLED" != "0" ]; then
+                echo "  ✗ 옮기면서 글자가 바뀌었습니다. 문자셋을 확인하십시오."
                 exit 1
               fi
 
