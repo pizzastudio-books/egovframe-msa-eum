@@ -1,7 +1,7 @@
 # 저장소를 기준으로 배포한다(20.2).
 #
-# **클러스터에 무엇이 도는지는 저장소가 정한다.** 손으로 kubectl apply 하지 않는다.
-# 저장소를 고치고 밀면 컨트롤러가 그것을 읽어 클러스터를 맞춘다.
+# **클러스터에 무엇이 도는지는 저장소가 정한다.** 손으로 kubectl 이나 helm 을 치지 않는다.
+# 저장소를 고치고 밀면 컨트롤러가 읽어 클러스터를 맞춘다.
 #
 # 공공 사업에서 이 방식의 값어치는 배포 이력이다 — 누가 언제 무엇을 바꿨는지가 커밋으로
 # 남는다. 11.3 의 change-cause 와 21.2 의 감리 설명 자료가 여기서 나온다.
@@ -17,30 +17,32 @@ spec:
     branch: main
   interval: 1m
 ---
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
+# 20.1 에서 만든 헬름 차트를 릴리스로 관리한다.
+#
+# 매니페스트를 kustomize 로 직접 적용하는 길도 있다. 그러면 20.1 의 차트가 놀게 된다.
+# **한 대상을 두 도구가 관리하면 서로 덮어쓴다** — 실제로 겪었다. 헬름으로 띄운 것을
+# kustomize 로 또 적용하려 하자 컨트롤러가 차이를 재느라 멈췄다.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
 metadata:
   name: eum
-  namespace: flux-system
+  namespace: eum
 spec:
-  sourceRef:
-    kind: GitRepository
-    name: eum
-  path: ./eum-services-k8s/overlays/local
-  targetNamespace: eum
   interval: 2m
-  # 저장소에서 지운 것은 클러스터에서도 지운다. 이것이 없으면 저장소와 클러스터가
-  # 조용히 벌어진다 — 지운 줄 알았는데 도는 상태다.
-  prune: true
-  # 배포가 끝난 것으로 볼 기준. 이것이 없으면 적용만 하고 뜨는지는 안 본다.
-  wait: true
-  timeout: 5m
-  healthChecks:
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: eum-core
-      namespace: eum
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: eum-gateway
-      namespace: eum
+  chart:
+    spec:
+      chart: ./eum-helm
+      sourceRef:
+        kind: GitRepository
+        name: eum
+        namespace: flux-system
+  valuesFrom:
+    - kind: ConfigMap
+      name: eum-values
+  install:
+    remediation:
+      retries: 2
+  upgrade:
+    remediation:
+      # 올리다 실패하면 되돌린다. 손이 안 닿는 새벽에도 마찬가지다(11.3).
+      remediateLastFailure: true
