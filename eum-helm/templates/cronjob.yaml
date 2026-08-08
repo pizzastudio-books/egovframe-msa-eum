@@ -42,6 +42,9 @@ spec:
                 - configMapRef:
                     name: {{ include "eum.fullname" $ctx }}
               env:
+                # 배치 파드에서는 아웃박스 발송기를 끈다(18.2).
+                - name: EUM_OUTBOX_ENABLED
+                  value: "false"
                 - name: EUM_BATCH_PAYMENT_ENABLED
                   value: "true"
                 {{- include "eum.dbEnv" $ctx | nindent 16 }}
