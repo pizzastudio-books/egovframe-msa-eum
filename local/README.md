@@ -147,3 +147,29 @@ docker compose up -d --build
 
 <http://localhost:8080> 입니다. 화면과 API 가 같은 주소로 나옵니다 — 컴포즈에는 인그레스가
 없으므로 그 갈래를 `docker/edge.conf` 한 장이 대신합니다.
+
+## 도커에 메모리를 넉넉히 주십시오
+
+**8GB 이상을 권합니다.** 실제로 겪었습니다 — 3.8GB 로 두었더니 네 서비스가 올라가는 도중
+API 서버가 응답을 멈추고(`TLS handshake timeout`), coredns 가 죽어 이름 풀이가 안 되고,
+파드들이 재시작을 되풀이했습니다. 코드나 매니페스트 문제로 보이지만 자원 부족입니다.
+
+실측입니다(2026-08-08, 세 노드 합계).
+
+| 무엇 | 메모리 |
+| --- | --- |
+| eum-control-plane | 722MiB |
+| eum-worker | 1.17GiB |
+| eum-worker2 | 1.16GiB |
+| **합계** | **약 3.0GiB** |
+
+여기에 이미지 빌드가 겹치면 넘칩니다. 도커 데스크톱은 설정 → Resources 에서 늘립니다.
+
+**증상으로 구별하는 법**입니다.
+
+| 증상 | 자원 부족일 때 |
+| --- | --- |
+| `TLS handshake timeout` | API 서버가 CPU 를 못 얻는다 |
+| coredns `CrashLoopBackOff` | 위와 같은 원인 |
+| 파드가 `UnknownHostException` | coredns 가 죽어서다. 앱 문제가 아니다 |
+| 종료 코드 137 | 메모리가 모자라 죽었다 |

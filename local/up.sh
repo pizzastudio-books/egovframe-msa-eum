@@ -64,10 +64,20 @@ kubectl wait --namespace ingress-nginx \
     --timeout=300s
 
 # ── 3. 이미지 ──────────────────────────────────────────────────────────────
+# 이미지를 만들어 클러스터 노드에 넣는다.
+#
+# 같은 태그로 다시 만들면 노드의 이미지가 갱신되지 않는다. 실제로 겪었다 — 코드를 고치고
+# 다시 올렸는데 옛 코드가 돌았고, 노드의 이미지 ID 가 그대로였다. 6.4 에서 태그를 고정하라고
+# 한 이유가 이것이다.
+#
+# 그래서 노드의 옛 이미지를 먼저 지우고 넣는다. 운영에서는 판마다 새 태그를 쓴다(20.2).
 build_and_load() {
     local name="$1" dir="$2"
     log "이미지 $name"
     docker build -q -t "eum/$name:1.0.0" "$dir" >/dev/null
+    for node in $(kind get nodes --name "$CLUSTER"); do
+        docker exec "$node" crictl rmi "docker.io/eum/$name:1.0.0" >/dev/null 2>&1 || true
+    done
     kind load docker-image "eum/$name:1.0.0" --name "$CLUSTER" >/dev/null
 }
 
