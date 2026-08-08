@@ -1,0 +1,106 @@
+# 3부의 데이터를 4부의 데이터베이스로 옮긴다(17.3).
+#
+# 서비스를 나누면 표만 새로 만드는 것이 아니라 **이미 쌓인 데이터를 옮겨야 한다.**
+# 실습에서는 3부(mono)로 띄워 신청·심사·지급을 만들어 본 뒤 4부로 넘어가므로 그 데이터가
+# 옛 데이터베이스에 남는다. 옮기지 않으면 담당자 화면에서 지급 내역이 사라진 것처럼 보인다.
+#
+# **칼럼이 그대로 옮겨지지 않는다.** 실제로 대조해 보니 이렇게 달랐다.
+#
+#   eum.payment      payment_id application_id amount account_no status_id sent_at
+#                    result_message create_date created_by modified_date last_modified_by
+#   eum_pay.payment  payment_id event_id application_id applicant_id amount account_no
+#                    status_id sent_at result_message created_at
+#
+# 새로 생긴 것(event_id·applicant_id), 이름이 바뀐 것(create_date → created_at),
+# 없어진 것(created_by·modified_date·last_modified_by)이 섞여 있다.
+#
+# event_id 는 `NOT NULL UNIQUE` 인데 옛 데이터에는 그런 값이 없다. 옛 지급 건에 새 식별자를
+# 만들어 넣되, **여러 번 돌려도 같은 값이 나오게** 만든다. 그래야 이관을 다시 돌려도
+# 중복이 생기지 않는다.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eum-db-migrate
+  namespace: eum
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mysql-client
+          image: mysql:8.4
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "root"
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              M="mysql -h eum-mysql -uroot -p$MYSQL_ROOT_PASSWORD -N"
+
+              echo "▶ 옮기기 전"
+              $M -e "select concat('  eum.payment           ', count(*)) from eum.payment;
+                     select concat('  eum_pay.payment       ', count(*)) from eum_pay.payment;
+                     select concat('  eum.notification      ', count(*)) from eum.notification;
+                     select concat('  eum_noti.notification ', count(*)) from eum_noti.notification;"
+
+              echo "▶ 지급을 옮깁니다"
+              # 이미 옮긴 건은 건너뛴다. 이관은 몇 번을 돌려도 같은 결과여야 한다.
+              $M -e "
+                insert into eum_pay.payment
+                  (event_id, application_id, applicant_id, amount, account_no,
+                   status_id, sent_at, result_message, created_at)
+                select
+                  concat('migrated-', p.payment_id),
+                  p.application_id,
+                  a.applicant_id,
+                  p.amount,
+                  p.account_no,
+                  p.status_id,
+                  p.sent_at,
+                  p.result_message,
+                  coalesce(p.create_date, now())
+                from eum.payment p
+                left join eum.application a on a.application_id = p.application_id
+                where not exists (
+                  select 1 from eum_pay.payment q
+                  where q.event_id = concat('migrated-', p.payment_id));"
+
+              echo "▶ 알림을 옮깁니다"
+              $M -e "
+                insert into eum_noti.notification
+                  (event_id, receiver_id, channel_id, title, content, status_id, sent_at, created_at)
+                select
+                  concat('migrated-', n.notification_id),
+                  n.receiver_id, n.channel_id, n.title, n.content,
+                  n.status_id, n.sent_at, coalesce(n.create_date, now())
+                from eum.notification n
+                where not exists (
+                  select 1 from eum_noti.notification m
+                  where m.event_id = concat('migrated-', n.notification_id));"
+
+              echo "▶ 옮긴 뒤"
+              $M -e "select concat('  eum_pay.payment       ', count(*)) from eum_pay.payment;
+                     select concat('  eum_noti.notification ', count(*)) from eum_noti.notification;"
+
+              echo "▶ 정합성 확인 — 옛 건이 전부 새 표에 있는가"
+              MISSING=$($M -e "
+                select count(*) from eum.payment p
+                where not exists (
+                  select 1 from eum_pay.payment q
+                  where q.event_id = concat('migrated-', p.payment_id));")
+              echo "  옮겨지지 않은 지급: $MISSING 건"
+              if [ "$MISSING" != "0" ]; then
+                echo "  ✗ 이관이 끝나지 않았습니다"
+                exit 1
+              fi
+
+              echo "▶ 금액 합계가 맞는가"
+              $M -e "
+                select concat('  옛 표 합계 ', coalesce(sum(amount),0)) from eum.payment;
+                select concat('  새 표 합계 ', coalesce(sum(amount),0)) from eum_pay.payment
+                  where event_id like 'migrated-%';"
+
+              echo "▶ 끝났습니다. 옛 표는 지우지 않습니다 — 되돌릴 수 있어야 합니다(17.3)."
