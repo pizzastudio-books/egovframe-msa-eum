@@ -1,8 +1,7 @@
 # 이음 — 로컬·컴포즈용 이미지
 #
-# 표준프레임워크 MSA 템플릿의 Dockerfile 을 따라 기반 이미지와 구조를 맞췄다.
-# 템플릿은 Dockerfile / DockerfileK8s / DockerfileK8sPipeline 세 벌을 두는데,
-# 무엇이 왜 다른지는 6.2 에서 나란히 읽는다.
+# 기반 이미지와 구조는 6.1 에서 정한 대로다. 도커 파일이 여러 벌일 때 무엇이 갈리는지는
+# 6.2 에서 다룬다.
 #
 #   ./gradlew bootJar
 #   docker build -t eum/eum-mono:1.0.0 .
