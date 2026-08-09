@@ -42,6 +42,29 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/name: eum-notification
+      # 데이터베이스가 뜨기를 기다린다.
+      #
+      # **쿠버네티스는 기동 순서를 보장하지 않는다.** 앱이 먼저 떠서 데이터베이스를 못 찾으면
+      # `UnknownHostException: eum-mysql` 로 죽고, 쿠버네티스가 다시 띄운다. 결국은 자리를
+      # 잡지만 그때까지 파드가 두세 번 재시작한다. 갓 올린 시스템에서 `RESTARTS 3` 을 본
+      # 운영자는 장애로 여긴다.
+      #
+      # **새 이미지를 들여오지 않으려고 앱 이미지를 그대로 쓴다.** 폐쇄망에서는 이미지 하나가
+      # 반입 절차 하나다(7.1). busybox 를 쓰면 그것도 반출·검증·서명 대상이 된다.
+      initContainers:
+        - name: wait-db
+          image: eum/eum-notification:1.0.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - bash
+            - -c
+            - 'until timeout 1 bash -c "</dev/tcp/eum-mysql/3306"; do echo "데이터베이스를 기다립니다"; sleep 2; done'
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
       containers:
         - name: eum-notification
           image: eum/eum-notification:1.0.0

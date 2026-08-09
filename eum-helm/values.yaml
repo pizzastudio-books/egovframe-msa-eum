@@ -51,6 +51,8 @@ services:
     image:
       repository: eum/eum-core
     port: 8080
+    # 데이터베이스를 쓴다. 뜨기를 기다렸다가 시작한다(11.1).
+    waitForDb: true
     metrics: true
     replicas: 3
     database: eum
@@ -77,6 +79,7 @@ services:
       EUM_OUTBOX_ENABLED: "true"
       EUM_OUTBOX_INTERVAL_MILLIS: "2000"
       # 타 기관 조회 방식. datasource 는 상대 DB 직결, api 는 연계 API(13.1)
+      # 손으로 쓴 매니페스트(core/configmap.yaml)와 같은 값이어야 한다(20.1).
       EUM_LEGACY_MODE: "api"
       EUM_LEGACY_API_BASE_URI: "http://mock-legacy"
 
@@ -84,6 +87,8 @@ services:
     image:
       repository: eum/eum-notification
     port: 8080
+    # 데이터베이스를 쓴다. 뜨기를 기다렸다가 시작한다(11.1).
+    waitForDb: true
     metrics: true
     replicas: 2
     database: eum_noti
@@ -106,6 +111,8 @@ services:
     image:
       repository: eum/eum-payment
     port: 8080
+    # 데이터베이스를 쓴다. 뜨기를 기다렸다가 시작한다(11.1).
+    waitForDb: true
     metrics: true
     replicas: 2
     database: eum_pay

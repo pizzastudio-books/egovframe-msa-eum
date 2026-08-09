@@ -27,7 +27,7 @@ services:
       mountPath: /usr/app/attachments
 
   notification:
-    replicas: 3
+    replicas: 2
     resources:
       requests: { cpu: "50m",  memory: "256Mi" }
       limits:   { cpu: "500m", memory: "512Mi" }

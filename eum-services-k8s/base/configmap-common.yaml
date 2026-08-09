@@ -14,3 +14,4 @@ data:
   MYSQL_PORT: "3306"
   RABBITMQ_HOST: "eum-rabbitmq"
   RABBITMQ_PORT: "5672"
+

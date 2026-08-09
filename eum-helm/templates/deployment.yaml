@@ -59,6 +59,25 @@ spec:
           labelSelector:
             matchLabels:
               {{- include "eum.selectorLabels" $ctx | nindent 14 }}
+      {{- if $svc.waitForDb }}
+      # 데이터베이스가 뜨기를 기다린다. 쿠버네티스는 기동 순서를 보장하지 않는다(11.1).
+      # 새 이미지를 안 들여오려고 앱 이미지를 그대로 쓴다 — 폐쇄망에서는 이미지 하나가
+      # 반입 절차 하나다(7.1).
+      initContainers:
+        - name: wait-db
+          image: {{ include "eum.image" $ctx }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command:
+            - bash
+            - -c
+            - 'until timeout 1 bash -c "</dev/tcp/{{ $.Values.common.MYSQL_HOST }}/{{ $.Values.common.MYSQL_PORT }}"; do echo "데이터베이스를 기다립니다"; sleep 2; done'
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+      {{- end }}
       containers:
         - name: {{ $name }}
           image: {{ include "eum.image" $ctx }}
