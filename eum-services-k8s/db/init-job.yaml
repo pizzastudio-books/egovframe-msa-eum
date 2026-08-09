@@ -20,7 +20,9 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: mysql-client
-          image: mysql:8.4
+          # 서버와 같은 판을 쓴다. 8.4 를 쓰다가 서버(8.0)와 어긋난 것을 20.3 에서 잡았다 —
+          # 클라이언트 판이 다르면 인증 방식이나 기본 문자셋이 달라질 수 있다.
+          image: mysql:8.0
           env:
             # 실습용이라 mysql.yaml 과 같은 값을 쓴다. 운영에서는 시크릿에서 받는다.
             - name: MYSQL_ROOT_PASSWORD
