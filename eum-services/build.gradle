@@ -95,3 +95,15 @@ subprojects {
         }
     }
 }
+
+// 같은 소스에서 같은 jar 가 나오게 한다.
+//
+// 기본값에서는 jar 안의 항목마다 **빌드한 시각**이 들어가서, 소스를 한 글자도 안 고치고
+// 다시 빌드해도 파일 다이제스트가 달라진다. 실제로 두 번 빌드해 확인했다(6.4).
+//
+// 다이제스트가 매번 달라지면 "이 이미지가 그 소스에서 나온 것인가"를 대조할 수 없다.
+// 폐쇄망 반입 때 무결성을 다이제스트로 확인하므로(7.2) 그대로 두면 안 된다.
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
