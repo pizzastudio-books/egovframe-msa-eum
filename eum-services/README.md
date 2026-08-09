@@ -55,7 +55,7 @@
 ## 돌려 보기
 
 ```bash
-./gradlew build          # 시험 56건
+./gradlew build          # 시험 84건
 ./gradlew :eum-core:bootRun          # 8080
 ./gradlew :eum-notification:bootRun  # 8081
 ./gradlew :eum-payment:bootRun       # 8082

@@ -30,7 +30,7 @@
 ## 돌려 보기
 
 ```
-./gradlew build     # 백엔드 시험 60건
+./gradlew build     # 백엔드 시험 66건
 ./gradlew bootRun   # http://localhost:8080
 
 cd frontend
