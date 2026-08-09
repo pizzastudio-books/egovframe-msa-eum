@@ -93,6 +93,15 @@ tasks.withType(JavaCompile) {
 }
 
 test {
+    // 실패 메시지를 콘솔에도 온전히 찍는다.
+    //
+    // 기본값에서는 `java.lang.AssertionError` 한 줄만 나오고 어느 클래스가 무엇을 어겼는지는
+    // HTML 보고서를 열어야 보인다. **CI 로그만 보는 사람에게는 아무 정보가 없다**(13.3).
+    testLogging {
+        exceptionFormat = 'full'
+        showStackTraces = false
+        events 'failed'
+    }
     useJUnitPlatform()
 }
 

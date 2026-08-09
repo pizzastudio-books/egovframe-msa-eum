@@ -31,16 +31,25 @@ class ModuleBoundaryTest {
     void 위반이_늘지_않는다() {
         int actual = countViolations();
         assertThat(actual)
-            .as("모듈 경계 위반이 늘었습니다. 새 직접 호출을 넣었는지 확인하십시오. "
-                + "줄였다면 KNOWN_VIOLATIONS 를 %d 로 낮추십시오.", actual)
+            .as("모듈 경계 위반이 %d 건에서 %d 건으로 늘었습니다. 새 직접 호출을 넣었는지"
+                + " 확인하십시오. 줄였다면 KNOWN_VIOLATIONS 를 %<d 로 낮추십시오.%n%s",
+                KNOWN_VIOLATIONS, actual, violationText())
             .isLessThanOrEqualTo(KNOWN_VIOLATIONS);
     }
 
     @Test
     @DisplayName("아무 모듈도 알림을 직접 부르지 않는다 — 13.4 이벤트 전환")
     void 알림은_직접_부르지_않는다() {
-        assertThat(violationText())
-            .doesNotContain("within module 'notification'");
+        // 어긴 줄을 그대로 뽑아 둔다. 이것이 없으면 실패했을 때 AssertionError 만 남아
+        // 어느 클래스가 무엇을 불렀는지 알 수 없다. 실제로 겪었다(13.3).
+        String offending = violationText().lines()
+            .filter(line -> line.contains("module 'notification'"))
+            .collect(java.util.stream.Collectors.joining("\n  "));
+
+        assertThat(offending)
+            .as("알림 모듈을 직접 부르는 곳이 생겼습니다. 이벤트로 바꾸십시오(13.4).%n  %s",
+                offending)
+            .isEmpty();
     }
 
     private int countViolations() {
