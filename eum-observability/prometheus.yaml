@@ -46,6 +46,10 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
 
+    # 규칙 파일을 읽는다. 이것이 없으면 지표를 모아 놓고도 아무도 안 본다(19.2).
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
     scrape_configs:
       # 파드에 붙은 표시를 보고 긁을 대상을 정한다. 서비스가 늘어도 이 파일은 안 바뀐다.
       - job_name: eum
@@ -113,6 +117,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/prometheus
+            - name: rules
+              mountPath: /etc/prometheus/rules
             - name: data
               mountPath: /prometheus
           readinessProbe:
@@ -124,6 +130,9 @@ spec:
         - name: config
           configMap:
             name: prometheus-config
+        - name: rules
+          configMap:
+            name: prometheus-rules
         # 실습이라 파드와 함께 사라진다. 운영에서는 볼륨을 붙인다(10.3).
         - name: data
           emptyDir: {}
@@ -140,3 +149,80 @@ spec:
     - port: 9090
       targetPort: http
       name: http
+---
+# 경보 규칙.
+#
+# **지표를 모으는 것과 알려 주는 것은 다른 일이다.** 19.2 에서 대시보드를 그렸지만 그것은
+# 사람이 볼 때만 보인다. 새벽 두 시에 배치가 밀리면 아무도 안 본다.
+#
+# 규칙마다 **무엇이 잘못됐는가**가 아니라 **누가 무엇을 해야 하는가**를 적는다.
+# 받아 든 사람이 그 자리에서 다음 행동을 알 수 있어야 한다(21.1).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: eum
+data:
+  eum.yml: |
+    groups:
+      - name: eum
+        rules:
+          # 아웃박스에 이벤트가 쌓인다 — 브로커가 죽었거나 발행기가 멈췄다(18.2).
+          #
+          # 접수는 계속 되므로 사용자는 아무것도 못 느낀다. **알림만 안 갑니다.**
+          # 그래서 이 경보가 없으면 며칠 뒤 민원으로 알게 된다.
+          - alert: 아웃박스가_밀린다
+            expr: max(eum_outbox_pending) > 2
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "보내지 못한 이벤트가 {{ $value }}건입니다"
+              action: "브로커가 살아 있는지 보십시오. kubectl get pod -n eum -l app.kubernetes.io/name=eum-rabbitmq"
+
+          # 죽은편지 큐에 무엇이 들어왔다 — 세 번 시도해도 처리 못 한 메시지다(15.4).
+          #
+          # 여기 들어온 것은 **스스로 없어지지 않는다.** 사람이 보고 정해야 한다.
+          - alert: 죽은편지_큐에_쌓임
+            expr: eum_dlq_messages > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "죽은편지 큐에 {{ $value }}건이 있습니다"
+              action: "15.4 의 절차대로 내용을 보고 다시 넣을지 버릴지 정하십시오"
+
+          # 준비된 파드가 목표보다 적다 — 배포가 멈췄거나 자리가 없다(8.2·11.3).
+          - alert: 파드가_모자란다
+            expr: kube_deployment_status_replicas_available < kube_deployment_spec_replicas
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "{{ $labels.deployment }} 가 목표 대수를 못 채웁니다"
+              action: "kubectl describe pod 로 이벤트를 보십시오. Pending 이면 자리가 없는 것입니다"
+
+          # 데이터베이스 접속이 상한에 다가간다(10.4).
+          #
+          # **넘기면 일부 요청만 실패한다.** 그래서 전면 장애로는 안 보이고 원인 찾기가
+          # 가장 어려운 모양이 된다. 넘기기 전에 알아야 한다.
+          - alert: 접속이_상한에_가깝다
+            expr: sum(hikaricp_connections_active) / sum(hikaricp_connections_max) > 0.8
+            for: 3m
+            labels:
+              severity: warning
+            annotations:
+              summary: "커넥션 풀 사용률이 {{ $value | humanizePercentage }} 입니다"
+              action: "파드 수 x 데이터소스 수 x 풀 크기를 다시 세십시오(10.4)"
+
+          # 야간 배치가 안 돌았다(11.5).
+          #
+          # **실패한 적이 없으니 아무 알림도 안 온다.** 지급이 하루씩 밀린다.
+          - alert: 야간_배치가_안_돌았다
+            expr: time() - kube_cronjob_status_last_successful_time{cronjob="eum-payment-batch"} > 93600
+            for: 10m
+            labels:
+              severity: critical
+            annotations:
+              summary: "야간 지급 배치가 26시간째 성공 기록이 없습니다"
+              action: "kubectl get job -n eum 으로 잡 상태를 보십시오. 손으로 다시 돌리기 전에 정규 회차 시각인지 확인하십시오(11.5)"
