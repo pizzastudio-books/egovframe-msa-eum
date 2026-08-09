@@ -36,6 +36,10 @@ spec:
         kind: GitRepository
         name: eum
         namespace: flux-system
+      # **차트 판을 안 올리면 내용이 바뀌어도 안 당긴다.** 실제로 겪었다 —
+      # values.yaml 을 고쳐 밀었는데 컨트롤러가 "in-sync" 라며 넘어갔다. 차트 판이
+      # 1.0.0 그대로라 같은 것으로 본 것이다. 커밋마다 다시 보게 한다(20.2).
+      reconcileStrategy: Revision
   valuesFrom:
     - kind: ConfigMap
       name: eum-values
