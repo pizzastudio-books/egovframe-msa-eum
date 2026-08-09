@@ -1,0 +1,20 @@
+# 지급 서비스에 누가 닿을 수 있는가.
+#
+# 기본은 "아무도 못 닿는다"이고, 여기 적힌 것만 닿는다. 알림이 지급 데이터베이스나
+# 지급 API 에 직접 붙는 일을 막는다(17.2).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eum-payment-ingress
+  namespace: eum
+spec:
+  podSelector:
+    matchLabels:
+      app: eum-payment
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: eum-core

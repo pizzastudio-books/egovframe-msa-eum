@@ -2,6 +2,18 @@ spring:
   application:
     name: eum-core
 
+  servlet:
+    multipart:
+      # 첨부 크기 상한. **인그레스의 proxy-body-size(20m)보다 작아야 한다**(9.2).
+      #
+      # 안 적으면 스프링 기본값 1MB 로 돌고, 사업자등록증 스캔 한 장에도 걸린다.
+      # 실측으로 1024KB 는 201, 1100KB 는 413 이었다.
+      #
+      # 인그레스가 먼저 끊으면 사용자는 nginx 의 영문 HTML 을 받고 앱은 그 요청을
+      # 본 적조차 없어 기록도 안 남는다. **끊는 자리를 앱으로 당겨 놓는다.**
+      max-file-size: 15MB
+      max-request-size: 18MB
+
   datasource:
     # 운영 전제는 기관 MySQL. 실습은 H2 를 MySQL 모드로 띄운다.
     # 5장에서 이 인메모리 DB 가 왜 문제가 되는지 다룬다.
