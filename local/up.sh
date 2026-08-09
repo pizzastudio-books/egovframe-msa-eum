@@ -119,6 +119,11 @@ else
     WORKLOADS="deployment/eum-core deployment/eum-notification deployment/eum-payment deployment/eum-gateway deployment/eum-web"
 fi
 
+# 자동 확장이 CPU 를 읽으려면 이것이 있어야 한다(10.4·11.5). 없으면 HPA 가
+# `cpu: <unknown>` 으로 남는다 — 목록에는 나오므로 잘 도는 것처럼 보인다.
+log "자원 지표 수집기를 올립니다"
+kubectl apply -f "$HERE/metrics-server.yaml" >/dev/null
+
 log "타 기관 연계 서버를 올립니다"
 kubectl apply -f "$HERE/mock-legacy/k8s.yaml"
 
