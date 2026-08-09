@@ -4,7 +4,7 @@
 
 ```bash
 kubectl apply -f flux.yaml        # 컨트롤러
-kubectl -n eum apply -f values-cm.yaml
+# 값은 Kustomization 이 저장소에서 가져온다(eum-app.yaml). 손으로 올리지 않는다.
 kubectl apply -f eum-app.yaml     # 저장소와 릴리스 정의
 ```
 
