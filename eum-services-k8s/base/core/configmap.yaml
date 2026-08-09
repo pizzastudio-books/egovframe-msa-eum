@@ -15,5 +15,8 @@ data:
   EUM_OUTBOX_INTERVAL_MILLIS: "2000"
   # 타 기관 조회 방식. datasource 는 상대 DB 직결, api 는 연계 API(13.1).
   # api 로 바꾸면 상대 기관 데이터소스도 함께 사라진다.
-  EUM_LEGACY_MODE: "datasource"
+  # 타 기관 정보를 어떻게 읽는가. datasource 면 상대 DB 에 직접 붙고, api 면 상대가
+  # 열어 준 연계 API 를 부른다. **1.2 의 넷째 문제가 이 값으로 갈린다.**
+  # 업무 코드는 손대지 않는다 — LegacyLookup 구현만 갈아 끼운다(13.1).
+  EUM_LEGACY_MODE: "api"
   EUM_LEGACY_API_BASE_URI: "http://mock-legacy"
