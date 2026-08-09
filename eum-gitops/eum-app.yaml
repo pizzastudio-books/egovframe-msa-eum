@@ -17,6 +17,27 @@ spec:
     branch: main
   interval: 1m
 ---
+# 값 파일을 클러스터로 나르는 길.
+#
+# **이것이 없으면 값이 저장소에만 있고 클러스터로 안 온다.** 실제로 겪었다 — HelmRelease 가
+# `ConfigMap/eum-values` 를 읽는데 그 컨피그맵을 아무도 안 만들어 주고 있었다. 처음
+# 세울 때 손으로 `kubectl apply` 한 것이 그대로 돌고 있었고, 저장소의 값을 고쳐 밀어도
+# 아무 일도 안 일어났다. **오류도 안 난다** — GitRepository 는 새 커밋을 잘 받아 오고
+# HelmRelease 도 "upgrade succeeded" 라고 답한다. 값만 옛것이다(20.2).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: eum-values
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: eum
+  path: ./eum-gitops/values
+  prune: true
+  targetNamespace: eum
+---
 # 20.1 에서 만든 헬름 차트를 릴리스로 관리한다.
 #
 # 매니페스트를 kustomize 로 직접 적용하는 길도 있다. 그러면 20.1 의 차트가 놀게 된다.
