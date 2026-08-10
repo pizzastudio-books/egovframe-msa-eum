@@ -1,0 +1,15 @@
+# 부록 F — 브로커를 카프카로 바꿀 때의 설정.
+#
+# **바인딩 이름과 목적지는 그대로입니다.** 바뀌는 것은 바인더 종류와 접속 정보뿐입니다.
+spring:
+  cloud:
+    stream:
+      kafka:
+        binder:
+          brokers: ${KAFKA_BROKERS:localhost:9092}
+        bindings:
+          notificationRequested-in-0:
+            consumer:
+              # 카프카에는 죽은편지 큐가 브로커 기능이 아니다. 바인더가 토픽을 하나 더 만든다.
+              enableDlq: true
+              dlqName: notification-requested.dlq

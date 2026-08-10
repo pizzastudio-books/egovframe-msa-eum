@@ -2,7 +2,7 @@
 #
 # 노트북에 이음을 통째로 올린다.
 #
-#   ./up.sh mono       3부 — 한 덩어리 배포본
+#   ./up.sh mono       3부 — 모놀리식 배포본
 #   ./up.sh services   4~5부 — 네 서비스로 나눈 배포본
 #   ./up.sh services --helm    같은 것을 헬름 차트로(20.1)
 #
