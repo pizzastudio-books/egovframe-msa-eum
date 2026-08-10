@@ -73,7 +73,7 @@ public class ApplicationService {
         Application saved = applicationRepository.insert(saveRequestDto.toEntity());
         saved.setProgram(program);
 
-        // 업무가 무엇을 했는지 한 줄 남긴다. 요청 식별자는 로그 형식이 앞머리에 찍는다.
+        // 업무가 무엇을 했는지 기록 하나를 남긴다. 요청 식별자는 로그 형식이 앞머리에 찍는다.
         // **식별자만 붙이고 남길 로그가 없으면 이을 것이 없다** — 실제로 그랬다.
         // 게이트웨이와 알림에는 식별자가 찍히는데 본체만 0건이었다(19.1).
         log.info("접수 신청번호={} 신청자={} 사업={} 금액={}",
