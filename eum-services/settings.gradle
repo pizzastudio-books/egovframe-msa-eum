@@ -6,5 +6,5 @@ include 'eum-notification'
 include 'eum-payment'
 include 'eum-gateway'
 
-// 서비스 사이를 잇는 통합시험(배포물 아님)
+// 서비스 사이를 연결하는 통합시험(배포물 아님)
 include 'eum-integration-test'

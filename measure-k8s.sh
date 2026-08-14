@@ -48,7 +48,7 @@ TOKEN=$(curl -sS "${H[@]}" -X POST "$B/api/v1/auth/login" -H 'Content-Type: appl
 ADMIN=$(curl -sS "${H[@]}" -X POST "$B/api/v1/auth/login" -H 'Content-Type: application/json' \
     -d '{"memberId":"admin","password":"eum12345!"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["token"])')
 
-# 자료 건수를 남긴다. **건수가 다르면 응답 시간을 견줄 수 없다.** 목록 조회는 자료가
+# 데이터 건수를 남긴다. **건수가 다르면 응답 시간을 견줄 수 없다.** 목록 조회는 데이터가
 # 쌓일수록 느려지므로, 조건을 적어 두지 않은 측정값은 나중에 쓸 수 없다.
 ROWS=$(kubectl exec -n eum eum-mysql-0 -- sh -c \
     'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -B -e "select count(*) from eum.application; select count(*) from eum.program;"' \
@@ -57,7 +57,7 @@ ROWS=$(kubectl exec -n eum eum-mysql-0 -- sh -c \
 {
 echo "# 기준선 — $LABEL (클러스터)"
 echo
-echo "  자료: 신청·지원사업 = $ROWS"
+echo "  데이터: 신청·지원사업 = $ROWS"
 echo
 kubectl get deploy -n eum -o custom-columns=이름:.metadata.name,레플리카:.spec.replicas --no-headers | sed 's/^/  /'
 echo

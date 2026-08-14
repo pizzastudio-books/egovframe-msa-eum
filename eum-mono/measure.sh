@@ -4,7 +4,7 @@
 #
 #   ./measure.sh
 #
-# 각 부의 끝에서 같은 명령으로 다시 잰다. 손으로 재면 예열 횟수·측정 횟수·자료 건수가
+# 각 부의 끝에서 같은 명령으로 다시 잰다. 손으로 재면 예열 횟수·측정 횟수·데이터 건수가
 # 매번 달라져 전후를 견줄 수 없다.
 #
 # 절대값에는 의미를 두지 않는다. 노트북에서 잰 값이라 실제 기관 서버와 다르다.
@@ -46,7 +46,7 @@ until curl -sf -o /dev/null -X POST "$B/api/v1/auth/login" \
   sleep 0.5
 done
 
-log "측정용 자료를 넣습니다"
+log "측정용 데이터를 넣습니다"
 ADMIN=$(curl -sS -X POST "$B/api/v1/auth/login" -H 'Content-Type: application/json' \
   -d '{"memberId":"admin","password":"eum12345!"}' \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
@@ -60,7 +60,7 @@ PID=$(curl -sS -X POST "$B/api/v1/programs" -H "Authorization: Bearer $ADMIN" \
        "requestEndDate":"2026-12-31T23:59:59"}' \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["programId"])')
 
-# 목록 조회에 쓸 자료. 40건이면 한 쪽(10건)을 채우고도 남는다.
+# 목록 조회에 쓸 데이터. 40건이면 한 쪽(10건)을 채우고도 남는다.
 for i in $(seq 1 40); do
   curl -sS -o /dev/null -X POST "$B/api/v1/applications" \
     -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
@@ -71,7 +71,7 @@ done
 # ── 측정 ───────────────────────────────────────────────────────────────────
 {
 echo "# 이음 기준선 — $(date '+%Y-%m-%d %H:%M')"
-echo "# 자료: 지원사업 1건 · 신청 40건 · 프로세스 1벌"
+echo "# 데이터: 지원사업 1건 · 신청 40건 · 프로세스 하나"
 echo
 
 python3 - "$B" "$TOKEN" "$ADMIN" <<'PY'

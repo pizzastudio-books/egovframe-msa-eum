@@ -36,7 +36,7 @@ data:
     GRANT ALL PRIVILEGES ON eum_pay.*  TO 'pay_app'@'%';
     FLUSH PRIVILEGES;
 
-  # 타 기관 테이블과 자료.
+  # 타 기관 테이블과 데이터.
   #
   # 데이터베이스만 만들어 두면 이음이 붙기는 하는데 조회에서 터진다.
   # 실제로 겪었다 — 파드는 정상으로 뜨고 로그인도 되는데, 접수만 500 이었다.

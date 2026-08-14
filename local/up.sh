@@ -32,7 +32,7 @@ command -v kind    >/dev/null || die "kind 가 없습니다. 부록 A 를 보십
 command -v kubectl >/dev/null || die "kubectl 이 없습니다. 부록 A 를 보십시오."
 docker info >/dev/null 2>&1   || die "도커 데몬에 닿지 못합니다. 도커를 먼저 켜십시오."
 
-# 클러스터가 8080 을 노트북과 잇는다. 컴포즈가 그 자리를 이미 쓰고 있으면 클러스터가
+# 클러스터가 8080 을 노트북과 연결한다. 컴포즈가 그 자리를 이미 쓰고 있으면 클러스터가
 # 만들어지지 않는데, 그 오류 문구만 보고는 원인을 알기 어렵다.
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
     if lsof -nP -iTCP:8080 -sTCP:LISTEN >/dev/null 2>&1; then

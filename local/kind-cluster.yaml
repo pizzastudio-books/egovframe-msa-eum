@@ -22,7 +22,7 @@ nodes:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
     extraPortMappings:
-      # 노트북의 8080 을 클러스터 인그레스로 잇는다.
+      # 노트북의 8080 을 클러스터 인그레스로 연결한다.
       # http://eum.local:8080 으로 들어간다(/etc/hosts 에 항목 하나 필요)
       - containerPort: 80
         hostPort: 8080
