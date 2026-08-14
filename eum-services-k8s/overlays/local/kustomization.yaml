@@ -1,6 +1,6 @@
 # 노트북 kind 클러스터용.
 #
-# 서비스가 넷이라 3부보다 파드가 훨씬 많다. 노트북 한 대에서 다 뜨도록 벌 수와
+# 서비스가 넷이라 3부보다 파드가 훨씬 많다. 노트북 한 대에서 다 뜨도록 레플리카 수와
 # 자원 요청을 줄인다. 본문은 관리형 클러스터를 기준으로 쓰고, 실습은 이 오버레이로
 # 돌린다. 그 차이를 A.3 에 정리해 두었다.
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -14,12 +14,12 @@ resources:
   - ../../broker
 
 patches:
-  # 노트북에서는 서비스마다 한 벌씩만 띄운다
+  # 노트북에서는 서비스마다 하나씩만 띄운다
   - target:
       kind: Deployment
       name: eum-core
     patch: |-
-      # HPA 가 벌 수를 정한다. 배포에도 replicas 를 적어 두면 둘이 서로 값을
+      # HPA 가 레플리카 수를 정한다. 배포에도 replicas 를 적어 두면 둘이 서로 값을
       # 되돌려 파드 수가 오르내린다. 자동 확장을 켠 서비스에서는 지운다
       - op: remove
         path: /spec/replicas
@@ -67,7 +67,7 @@ patches:
         path: /spec/replicas
         value: 1
 
-  # 벌이 하나면 PDB 가 배포를 막는다. 노트북에서는 0 으로 둔다
+  # 레플리카가 하나면 PDB 가 배포를 막는다. 노트북에서는 0 으로 둔다
   - target:
       kind: PodDisruptionBudget
       name: eum-core
@@ -104,7 +104,7 @@ patches:
         path: /spec/minAvailable
         value: 0
 
-  # 노트북에서는 본체만 자동 확장을 켠다. 벌이 하나뿐인 서비스에 HPA 를 붙여 봐야
+  # 노트북에서는 본체만 자동 확장을 켠다. 레플리카가 하나뿐인 서비스에 HPA 를 붙여 봐야
   # 늘릴 자리가 없다. 나머지 셋은 오브젝트째 지운다
   - target:
       kind: HorizontalPodAutoscaler

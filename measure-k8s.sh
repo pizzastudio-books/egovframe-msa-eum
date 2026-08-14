@@ -59,7 +59,7 @@ echo "# 기준선 — $LABEL (클러스터)"
 echo
 echo "  자료: 신청·지원사업 = $ROWS"
 echo
-kubectl get deploy -n eum -o custom-columns=이름:.metadata.name,벌:.spec.replicas --no-headers | sed 's/^/  /'
+kubectl get deploy -n eum -o custom-columns=이름:.metadata.name,레플리카:.spec.replicas --no-headers | sed 's/^/  /'
 echo
 } > "$OUT"
 

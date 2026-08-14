@@ -2,7 +2,7 @@
 #
 #   helm install eum . -n eum --create-namespace -f values-local.yaml
 #
-# 서비스가 넷이라 3부보다 파드가 훨씬 많다. 노트북 한 대에서 다 뜨도록 벌 수와 자원
+# 서비스가 넷이라 3부보다 파드가 훨씬 많다. 노트북 한 대에서 다 뜨도록 레플리카 수와 자원
 # 요청을 줄인다. 본문은 관리형 클러스터를 기준으로 쓰고 실습은 이 값으로 돌린다.
 
 services:
@@ -33,7 +33,7 @@ services:
       limits:   { cpu: "500m", memory: "512Mi" }
     autoscaling:
       enabled: false
-    # 벌이 하나뿐이면 PDB 가 노드 정리를 막는다
+    # 레플리카가 하나뿐이면 PDB 가 노드 정리를 막는다
     disruptionBudget:
       minAvailable: 0
 
